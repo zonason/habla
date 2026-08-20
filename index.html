@@ -111,9 +111,9 @@
   .startbig .s1{font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
   .startbig .s2{font-family:'Archivo Black';font-size:23px;letter-spacing:-.01em;text-align:center}
   .startbig:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
-  .startrow{display:flex;gap:8px;margin-top:16px;align-items:stretch}
-  .startrow .startbig{margin-top:0;flex:1;min-width:0}
-  .startdd{flex:none;width:54px;border:none;border-radius:14px;background:var(--rosa);color:var(--rosa-ink);font-size:20px;cursor:pointer;box-shadow:var(--shadow)}
+  .startrow{display:flex;gap:0;margin-top:16px;align-items:stretch;background:var(--rosa);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .startrow .startbig{margin-top:0;flex:1;min-width:0;background:none;box-shadow:none;border-radius:0}
+  .startdd{flex:none;width:56px;border:none;border-left:1.5px solid color-mix(in srgb, var(--rosa-ink) 30%, transparent);border-radius:0;background:none;color:var(--rosa-ink);font-size:20px;cursor:pointer}
   .startdd span{display:inline-block;transition:transform .15s}
   .startdd.open span{transform:rotate(180deg)}
   .startdd:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
