@@ -67,8 +67,21 @@
   .pchip:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
   .duel{display:flex;align-items:center;gap:8px;margin-top:14px}
   .dvs{flex:none;font-family:'Archivo Black';font-size:13px;color:var(--rosa)}
-  .dcard{flex:1;min-width:0;background:var(--card);border:1px solid var(--card-edge);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;box-shadow:var(--shadow)}
-  .dcard img{width:54px;height:54px;object-fit:cover;object-position:top;border-radius:10px;flex:none;background:var(--track)}
+  .dcard{flex:1;min-width:0;background:var(--card);border:1px solid var(--card-edge);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;box-shadow:var(--shadow);cursor:pointer}
+  .dcard:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .avwrap{position:relative;flex:none}
+  .dcard img{width:54px;height:54px;object-fit:cover;object-position:top;border-radius:10px;display:block;background:var(--track)}
+  .rankb{position:absolute;top:-7px;left:-7px;font-size:10.5px;font-weight:800;border-radius:99px;padding:2px 6px;background:#e8a020;color:#3a2a05;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+  .rankb.r2{background:#b9bec9;color:#272a30}
+  .prow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--card-edge);font-size:15px}
+  .prow:last-child{border-bottom:none}
+  .pdot{width:10px;height:10px;border-radius:99px;background:var(--track);flex:none}
+  .pdot.solid{background:var(--green)} .pdot.prog{background:var(--gold)}
+  .pmini{margin-left:auto;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .pph{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--rosa);margin:20px 0 4px;display:flex;justify-content:space-between}
+  .pph span:last-child{color:var(--muted);letter-spacing:0}
+  .plast{background:var(--cobalt-soft);border-radius:10px;padding:11px 14px;font-size:14.5px;margin-top:14px}
+  .plast b{display:block;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--cobalt);margin-bottom:3px}
   .dmain{flex:1;min-width:0}
   .dn{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .dstats{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:1px;white-space:nowrap}
@@ -257,6 +270,9 @@
       <button class="btn btn-primary" id="niSave">Save</button>
     </div>
   </div>
+</div>
+<div class="overlay fs" id="profOverlay" role="dialog" aria-modal="true" aria-label="Progress">
+  <div class="sheet" id="profSheet" style="overflow-y:auto"></div>
 </div>
 <div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-label="Confirmar">
   <div class="sheet">
@@ -951,23 +967,91 @@ function confetti(){
   document.body.appendChild(c);
   setTimeout(()=>c.remove(),3800);
 }
+function rankOf(pid){
+  const xps=Object.values(DB.profiles).map(p=>p.xp||0);
+  const max=Math.max(...xps);
+  return ((DB.profiles[pid].xp||0)===max)?1:2;
+}
 function renderDuel(){
   const box=$('#duel'); box.innerHTML='';
   const pids=Object.keys(DB.profiles); if(pids.length<2) return;
   const ordered=[activeId,...pids.filter(p=>p!==activeId)];
-  const xps=ordered.map(pid=>DB.profiles[pid].xp||0);
-  const maxXp=Math.max(...xps);
-  ordered.forEach((pid,i)=>{
+  ordered.forEach(pid=>{
     const p=DB.profiles[pid];
     const solid=profSolid(p), pct=Math.round(solid/ALL.length*100);
-    const crown=(maxXp>0&&(p.xp||0)===maxXp)?' 👑':'';
+    const r=rankOf(pid);
     const d=document.createElement('div'); d.className='dcard';
-    d.innerHTML=`<img src="${avSrc(p)}" alt="" onerror="this.remove()">
-      <div class="dmain"><div class="dn">${esc(p.name)}${crown}</div>
+    d.setAttribute('role','button'); d.tabIndex=0;
+    d.innerHTML=`<span class="avwrap"><img src="${avSrc(p)}" alt="" onerror="this.remove()"><span class="rankb${r===2?' r2':''}">#${r}</span></span>
+      <div class="dmain"><div class="dn">${esc(p.name)}</div>
       <div class="dstats">⚡${p.xp||0} · 🔥${streakOf(p)} · ${pct}%</div>
       <div class="dbar"><b style="width:${pct}%"></b></div></div>`;
+    const open=()=>openProfile(pid);
+    d.addEventListener('click',open);
+    d.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();open();} });
     box.appendChild(d);
   });
+}
+function fmtAgo(ts){
+  if(!ts) return 'never';
+  const m=(Date.now()-ts)/60000;
+  if(m<60) return Math.max(1,Math.round(m))+' min ago';
+  if(m<1440) return Math.round(m/60)+' h ago';
+  const d=Math.round(m/1440);
+  return d===1?'yesterday':d+' days ago';
+}
+function openProfile(pid){
+  const p=DB.profiles[pid]; const tt=p.topics||{};
+  const get=id=>tt[id]||{};
+  const sessions=Object.values(tt).reduce((a,x)=>a+(x.sessions||0),0);
+  const pods=Object.values(tt).reduce((a,x)=>a+((x.pods||[]).length),0);
+  const decks=Object.values(tt).filter(x=>x.fcDone).length;
+  const quizzes=Object.values(tt).filter(x=>x.passed).length;
+  const mins=sessions*20+pods*15+decks*10+quizzes*5;
+  const daysActive=Object.keys(p.act||{}).length;
+  const nameOf=tid=>{ if(p.custom&&p.custom[tid]) return p.custom[tid].name; const x=ALL.find(a=>a.id===tid); return x?x.name:'—'; };
+  let lastTxt='No activity yet';
+  if(p.last){
+    const modeTxt={ai:'🎙 AI session',pod:'🎧 Podcast',fc:'🃏 Flashcards'}[p.last.mode]||'Activity';
+    lastTxt=`${modeTxt} — ${esc(nameOf(p.last.tid))} · ${fmtAgo(p.last.ts)}`;
+  }
+  const dotFor=s=>s==='solid'?'solid':s==='progress'?'prog':'';
+  const miniFor=x=>{
+    const parts=[];
+    if(x.sessions) parts.push('🎙'+x.sessions);
+    if((x.pods||[]).length) parts.push('🎧'+x.pods.length);
+    if(x.fcDone) parts.push('🃏✓');
+    if(x.best!==null&&x.best!==undefined) parts.push('📝'+x.best);
+    return parts.join(' ');
+  };
+  const phasesHtml=PHASES.map(ph=>{
+    const done=ph.topics.filter(x=>get(x.id).status==='solid').length;
+    const rows=ph.topics.map(x=>{ const s=get(x.id);
+      return `<div class="prow"><span class="pdot ${dotFor(s.status)}"></span><span>${esc(x.name)}</span><span class="pmini">${miniFor(s)}</span></div>`; }).join('');
+    return `<div class="pph"><span>${esc(ph.eyebrow)} · ${esc(ph.name)}</span><span>${done}/${ph.topics.length}</span></div>${rows}`;
+  }).join('');
+  const customIds=Object.keys(p.custom||{}).filter(k=>!p.custom[k].del);
+  const customHtml=customIds.length?`<div class="pph"><span>Added Items</span><span>${customIds.length}</span></div>`+
+    customIds.map(cid=>{ const s=get(cid);
+      return `<div class="prow"><span class="pdot ${dotFor(s.status)}"></span><span>${esc(p.custom[cid].name)}</span><span class="pmini">${miniFor(s)}</span></div>`; }).join(''):'';
+  $('#profSheet').innerHTML=`
+    <div class="sheet-head">
+      <h3 class="sheet-title display" style="display:flex;align-items:center;gap:12px">
+        <span class="avwrap"><img src="${avSrc(p)}" alt="" style="width:46px;height:46px;object-fit:cover;object-position:top;border-radius:10px" onerror="this.remove()"><span class="rankb${rankOf(pid)===2?' r2':''}">#${rankOf(pid)}</span></span>
+        ${esc(p.name)}</h3>
+      <button class="btn btn-secondary" id="profClose" style="flex:none;padding:9px 16px">Close</button>
+    </div>
+    <div class="hero-stats" style="margin-top:16px">
+      <div class="stat"><b>${p.xp||0}</b><span>XP</span></div>
+      <div class="stat"><b>${streakOf(p)}</b><span>Streak</span></div>
+      <div class="stat"><b>~${Math.round(mins/60*10)/10}h</b><span>Time spent</span></div>
+      <div class="stat"><b>${daysActive}</b><span>Days active</span></div>
+    </div>
+    <div class="plast"><b>Last activity</b>${lastTxt}</div>
+    <div class="plast" style="margin-top:8px"><b>Last active</b>${fmtAgo(p.seen)}</div>
+    ${phasesHtml}${customHtml}`;
+  $('#profOverlay').classList.add('show');
+  $('#profClose').addEventListener('click',()=>$('#profOverlay').classList.remove('show'));
 }
 function nextPod(t){
   const list=PODS[t.id]||[];
@@ -1182,7 +1266,7 @@ function stats(){
   const total=ALL.length;
   const solid=ALL.filter(t=>st(t.id).status==='solid');
   const prog=ALL.filter(t=>st(t.id).status==='progress');
-  const sessions=ALL.reduce((a,t)=>a+st(t.id).sessions,0);
+  const sessions=ALL.reduce((a,t)=>a+(st(t.id).sessions||0),0);
   const minsLeft=ALL.filter(t=>st(t.id).status!=='solid').reduce((a,t)=>a+t.mins,0);
   $('#stat-solid').textContent=Math.round(solid.length/total*100)+'%';
   $('#stat-topics').textContent=solid.length+'/'+total;
