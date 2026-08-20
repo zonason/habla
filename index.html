@@ -218,7 +218,6 @@
   <header>
     <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
     <p class="tagline">Español mexicano · A2 → B2</p>
-    <div class="profiles" id="profiles" role="group" aria-label="Perfil"></div>
     <div class="duel" id="duel"></div>
     <div class="hero-stats">
       <div class="stat"><b id="stat-solid">0%</b><span>Sólido</span></div>
@@ -233,41 +232,39 @@
   <main id="phases"></main>
 
   <footer>
-    <p>Safari: <b>Compartir → Agregar a pantalla de inicio</b> para tener Habla como app.</p>
-    <p id="syncline">💾 Progreso guardado solo en este dispositivo.</p>
-    <button class="reset" id="resetBtn">Borrar todo el progreso</button>
-    <button class="reset" id="syncBtn">Configurar sincronización</button>
+    <button class="reset" id="resetBtn">Delete all progress</button>
+    <button class="reset" id="syncBtn">Configure sync</button>
   </footer>
 </div>
 
 <div class="gate" id="gate" hidden>
   <div class="gate-box">
     <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
-    <p class="gate-msg">App familiar — escribe el código de acceso.<br>Solo lo harás una vez en este teléfono.</p>
+    <p class="gate-msg">Enter your personal code.<br>You only do this once on this device.</p>
     <input class="field" id="gateInput" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="····">
-    <button class="btn btn-primary" id="gateBtn">Entrar</button>
+    <button class="btn btn-primary" id="gateBtn">Enter</button>
     <p class="gate-err" id="gateErr"></p>
   </div>
 </div>
 <button class="fab" id="addItemBtn">+ Add Item</button>
 <div class="overlay" id="addOverlay" role="dialog" aria-modal="true" aria-label="Nuevo tema">
   <div class="sheet tall">
-    <div class="sheet-head"><h3 class="sheet-title display">Nuevo tema</h3></div>
-    <p class="modal-hint">Describe lo que se te dificulta — un tema de gramática, una situación, una palabra que confundes. La primera línea será el título.</p>
-    <textarea class="field big" id="niText" placeholder="ya vs. todavía&#10;&#10;Los confundo cuando hablo rápido, sobre todo en preguntas…"></textarea>
+    <div class="sheet-head"><h3 class="sheet-title display">Add Item</h3></div>
+    <p class="modal-hint">Describe what you're struggling with — a grammar point, a situation, a word you mix up. The first line becomes the title.</p>
+    <textarea class="field big" id="niText" placeholder="ya vs. todavía&#10;&#10;I mix them up when speaking fast, especially in questions…"></textarea>
     <div class="actions" style="margin-top:16px">
-      <button class="btn btn-secondary" id="niCancel">Cancelar</button>
-      <button class="btn btn-primary" id="niSave">Guardar</button>
+      <button class="btn btn-secondary" id="niCancel">Cancel</button>
+      <button class="btn btn-primary" id="niSave">Save</button>
     </div>
   </div>
 </div>
 <div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-label="Confirmar">
   <div class="sheet">
-    <div class="sheet-head"><h3 class="sheet-title display" id="cfTitle">¿Seguro?</h3></div>
+    <div class="sheet-head"><h3 class="sheet-title display" id="cfTitle">Are you sure?</h3></div>
     <p class="modal-hint" id="cfMsg"></p>
     <div class="actions" style="margin-top:18px">
-      <button class="btn btn-secondary" id="cfNo">Cancelar</button>
-      <button class="btn btn-danger" id="cfYes">Sí, borrar</button>
+      <button class="btn btn-secondary" id="cfNo">Cancel</button>
+      <button class="btn btn-danger" id="cfYes">Yes, delete</button>
     </div>
   </div>
 </div>
@@ -1019,21 +1016,6 @@ function statusChip(s){
 }
 function fmtMins(m){ if(!m) return 'ongoing'; return m>=60 ? (Math.round(m/60*10)/10)+' h' : m+' min'; }
 
-function renderProfiles(){
-  const box=$('#profiles'); box.innerHTML='';
-  Object.keys(DB.profiles).forEach(pid=>{
-    const b=document.createElement('button');
-    b.className='pchip'+(pid===activeId?' active':'');
-    b.textContent=DB.profiles[pid].name;
-    b.addEventListener('click',()=>{
-      if(pid===activeId) return;
-      activeId=pid; try{localStorage.setItem(PKEY,activeId);}catch(e){}
-      render();
-    });
-    box.appendChild(b);
-  });
-}
-
 function nextTopic(){
   for(const p of PHASES) for(const t of p.topics) if(st(t.id).status!=='solid') return t;
   return null;
@@ -1055,7 +1037,7 @@ function renderStart(){
   const where=t.custom?'Added Item':esc((PHASES[t.pi]||{}).eyebrow||'');
   const a=document.createElement('a');
   a.className='startbig';
-  a.innerHTML=`<span class="s1">${continuing?'Continuar':'Empezar ahora'} · ${where}</span><span class="s2">${icons[mode]} ${esc(t.name)}</span>`;
+  a.innerHTML=`<span class="s1">${continuing?'Continuar':'Empezar ahora'} · ${where}</span><span class="s2">▶ ${icons[mode]} ${esc(t.name)}</span>`;
   if(mode==='ai'){
     a.target='_blank'; a.rel='noopener';
     a.href='https://chatgpt.com/?q='+encodeURIComponent(promptFor(t));
@@ -1073,7 +1055,6 @@ function renderStart(){
 
 const phaseOpen={};  // per-session manual overrides
 function render(){
-  renderProfiles();
   renderDuel();
   renderStart();
   const root=$('#phases'); root.innerHTML='';
@@ -1141,7 +1122,7 @@ $('#niSave').addEventListener('click',()=>{
   P().custom[cid]={name, why:text, conv:'Drill me repeatedly on this specific weakness with rapid-fire conversational practice. Create realistic situations from my daily life that force me to use it again and again.', u:Date.now()};
   $('#addOverlay').classList.remove('show');
   save(); render();
-  toast(SYNC?'Tema agregado — ✨ creando contenido…':'Tema agregado: '+name);
+  toast(SYNC?'Added — ✨ generating content…':'Added: '+name);
   generateContent(cid);
 });
 
@@ -1163,7 +1144,7 @@ function card(t){
         ${FC[t.id]?`<button class="btn btn-cards" data-act="cards">🃏 Tarjetas</button>`:''}
       </div>
       ${t.quiz?'<div class="actions" style="margin-top:8px"><button class="btn btn-quiz" data-act="quiz">📝 Quiz</button></div>':''}
-      ${t.custom?'<button class="delT" data-act="del">Eliminar este tema</button>':''}
+      ${t.custom?'<button class="delT" data-act="del">Delete this item</button>':''}
     </div>`;
   el.querySelector('.topic-row').addEventListener('click',()=>{
     const open=el.classList.toggle('open');
@@ -1174,9 +1155,9 @@ function card(t){
   const cb=el.querySelector('[data-act="cards"]'); if(cb) cb.addEventListener('click',()=>openCards(t));
   const qb=el.querySelector('[data-act="quiz"]'); if(qb) qb.addEventListener('click',()=>openQuiz(t));
   const db=el.querySelector('[data-act="del"]'); if(db) db.addEventListener('click',()=>{
-    confirmSheet('Se eliminará el tema “'+t.name+'” y su progreso.',()=>{
+    confirmSheet('The item “'+t.name+'” and its progress will be deleted.',()=>{
       const c=P().custom[t.id]; c.del=Date.now(); c.u=Date.now(); save(); render();
-      toast('Tema eliminado');
+      toast('Item deleted');
     });
   });
   return el;
@@ -1364,36 +1345,40 @@ function toast(msg){
 }
 $('#resetBtn').addEventListener('click',()=>{
   const p=P();
-  confirmSheet('Se borrará todo el progreso de '+p.name+' — sesiones, estados y quizzes. Esto no se puede deshacer.',()=>{
-    p.topics={}; p.reset=Date.now(); save(); render(); toast('Progreso de '+p.name+' borrado');
+  confirmSheet('This will erase all of '+p.name+"'s progress — sessions, statuses, and quiz scores. This cannot be undone.",()=>{
+    p.topics={}; p.reset=Date.now(); save(); render(); toast(p.name+"'s progress deleted");
   });
 });
 
 $('#syncBtn').addEventListener('click',()=>{
-  if(art){ toast('Ya sincronizado con tu cuenta de Claude ☁️'); return; }
-  const url=prompt('Pega tu URL de sincronización (la del servidor familiar).\nDéjala vacía para desactivar la sincronización.',SYNC||'');
+  if(art){ toast('Already synced via your Claude account ☁️'); return; }
+  const url=prompt('Paste your sync URL (the family server).\nLeave it empty to turn sync off.',SYNC||'');
   if(url===null) return;
   const v=url.trim();
-  if(v&&!/^https:\/\//.test(v)){ toast('La URL debe empezar con https://'); return; }
+  if(v&&!/^https:\/\//.test(v)){ toast('The URL must start with https://'); return; }
   SYNC=v||null;
   try{ v?localStorage.setItem('habla-sync',v):localStorage.removeItem('habla-sync'); }catch(e){}
-  if(SYNC){ toast('Sincronización configurada'); initSync(); }
-  else { setSyncUI('local'); toast('Sincronización desactivada'); }
+  if(SYNC){ toast('Sync configured'); initSync(); }
+  else { setSyncUI('local'); toast('Sync turned off'); }
 });
 
-/* ---- one-time device passcode gate ---- */
+/* ---- one-time device passcode gate; the code identifies the person ---- */
 (function(){
-  const OK='habla-gate-v2', CODE=atob('MzY5Mw==');   // casual gate, not cryptography
+  const OK='habla-gate-v3';
+  const CODES={ [atob('MzY5Mw==')]:'ethan', [atob('Mzk2Mw==')]:'kate' };   // casual gate, not cryptography
   let unlocked=false;
   try{ unlocked=localStorage.getItem(OK)==='ok'; }catch(e){}
   if(unlocked) return;
   const g=$('#gate'); g.hidden=false;
   const tryCode=()=>{
-    if($('#gateInput').value.trim().toLowerCase()===CODE){
-      try{localStorage.setItem(OK,'ok');}catch(e){}
-      g.hidden=true;
+    const who=CODES[$('#gateInput').value.trim()];
+    if(who){
+      const pid=Object.keys(DB.profiles).find(p=>(DB.profiles[p].name||'').trim().toLowerCase()===who)||(who==='kate'?'p2':'p1');
+      activeId=pid;
+      try{ localStorage.setItem(OK,'ok'); localStorage.setItem(PKEY,activeId); }catch(e){}
+      g.hidden=true; render();
     }else{
-      $('#gateErr').textContent='Código incorrecto';
+      $('#gateErr').textContent='Wrong code';
       $('#gateInput').value=''; $('#gateInput').focus();
     }
   };
