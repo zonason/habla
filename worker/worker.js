@@ -65,10 +65,10 @@ Return ONLY a JSON object, no markdown fences, with exactly these fields:
   "conv": "one or two English sentences instructing a voice tutor how to drill this weak spot in natural conversation",
   "quiz": [
     ["question in Spanish, fill-in-the-blank using ___", ["opt1","opt2","opt3","opt4"], correctIndex, "one-line explanation in English"],
-    ... exactly 5 items
+    ... exactly 10 items
   ]
 }
-Rules: every quiz answer must be unambiguously correct for Mexican Spanish; distractors must be plausible learner mistakes; vary which position (0-3) holds the correct answer across the 5 questions.`;
+Rules: every quiz answer must be unambiguously correct for Mexican Spanish; distractors must be plausible learner mistakes; vary which position (0-3) holds the correct answer across the 10 questions.`;
 
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -79,7 +79,7 @@ Rules: every quiz answer must be unambiguously correct for Mexican Spanish; dist
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 2000,
+          max_tokens: 3500,
           messages: [{ role: 'user', content: prompt }],
         }),
       });
@@ -94,8 +94,8 @@ Rules: every quiz answer must be unambiguously correct for Mexican Spanish; dist
         .filter(q => Array.isArray(q) && q.length >= 4 && typeof q[0] === 'string'
           && Array.isArray(q[1]) && q[1].length === 4
           && Number.isInteger(q[2]) && q[2] >= 0 && q[2] < 4 && typeof q[3] === 'string')
-        .slice(0, 5);
-      if (g.quiz.length !== 5) return new Response('bad quiz', { status: 502, headers: cors });
+        .slice(0, 10);
+      if (g.quiz.length !== 10) return new Response('bad quiz', { status: 502, headers: cors });
       return new Response(JSON.stringify({ why: g.why, example: g.example, conv: g.conv, quiz: g.quiz }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       });

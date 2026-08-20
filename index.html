@@ -680,7 +680,7 @@ async function generateContent(cid){
       body:JSON.stringify({name:it.name,text:it.why})});
     if(!r.ok) return;
     const g=await r.json();
-    if(!g||!Array.isArray(g.quiz)||g.quiz.length!==5) return;
+    if(!g||!Array.isArray(g.quiz)||g.quiz.length<10) return;
     it.gen={why:String(g.why||''),example:String(g.example||''),conv:String(g.conv||''),quiz:g.quiz};
     it.u=Date.now(); save(); render();
     toast('✨ Contenido y quiz creados: '+it.name);
@@ -716,7 +716,170 @@ async function initSync(){
 }
 document.addEventListener('visibilitychange',()=>{ if(document.hidden&&pushTimer) push(); });
 
-const ALL=[]; PHASES.forEach((p,pi)=>p.topics.forEach(t=>{t.id='t'+t.n; t.pi=pi; ALL.push(t);}));
+// 5 additional questions per topic (quizzes are 10 total; pass = 80%)
+const QUIZ2={
+t1:[["Mi esposa ___ (leer) en las noches.",["lee","leo","lees","leen"],0,"Ella → lee."],
+ ["¿Ustedes ___ (vivir) cerca de aquí?",["viven","vivimos","vives","vive"],0,"Ustedes → viven."],
+ ["Yo ___ (abrir) la oficina a las nueve.",["abro","abre","abrimos","abren"],0,"Yo → abro."],
+ ["Los viernes nosotros ___ (comer) fuera.",["comemos","comen","como","comimos"],0,"Nosotros → comemos."],
+ ["Ella ___ (trabajar) conmigo en el proyecto.",["trabaja","trabajo","trabajan","trabajas"],0,"Ella → trabaja."]],
+t2:[["Yo ___ (salir) temprano hoy.",["salgo","salo","sale","salió"],0,"Go-verb: salgo."],
+ ["¿Qué ___ (decir) tú?",["dices","deces","dice","digas"],0,"Decir: e→i + tú → dices."],
+ ["Ellos ___ (jugar) fútbol los sábados.",["juegan","jugan","juegen","jugamos"],0,"Jugar: u→ue → juegan."],
+ ["Yo no ___ (saber) la respuesta.",["sé","sabo","sepo","sabes"],0,"Saber: yo sé."],
+ ["Ella ___ (pedir) un café.",["pide","pede","pida","pidió"],0,"Pedir: e→i → pide."]],
+t3:[["Nosotros ___ ocupados ahorita.",["estamos","somos","estámos ser","seremos"],0,"Estado temporal → estamos."],
+ ["La reunión ___ en mi casa.",["es","está","están","estaba"],0,"Eventos usan ser, aun para lugar."],
+ ["Mi hija ___ muy inteligente.",["es","está","estás","están"],0,"Característica → ser."],
+ ["¿Dónde ___ las llaves?",["están","son","es","está"],0,"Ubicación de cosas → estar."],
+ ["Hoy ___ martes.",["es","está","son","estamos en ser"],0,"Fecha → ser."]],
+t4:[["___ ciudad es muy grande.",["La","El","Lo","Los"],0,"Ciudad es femenina."],
+ ["Compré un coche ___.",["nuevo","nueva","nuevos","nuevas"],0,"Coche masculino singular."],
+ ["___ foto salió borrosa.",["La","El","Lo","Las"],0,"Foto (de fotografía) es femenina."],
+ ["Es un ___ día para salir.",["buen","bueno","buena","buenos"],0,"Bueno se acorta a “buen” antes de sustantivo masculino."],
+ ["Las casas de esa calle son ___.",["blancas","blancos","blanca","blanco"],0,"Femenino plural → blancas."]],
+t5:[["¿___ vives ahora?",["Dónde","Cuándo","Cómo","Quién"],0,"Lugar → dónde."],
+ ["¿___ cuesta esto?",["Cuánto","Cuántos","Qué","Cuál"],0,"Precio → cuánto cuesta."],
+ ["¿___ es la junta, hoy o mañana?",["Cuándo","Dónde","Cuál","Cómo"],0,"Tiempo → cuándo."],
+ ["¿___ se dice “meeting” en español?",["Cómo","Qué","Cuál","Por qué"],0,"Manera → cómo se dice."],
+ ["¿___ de estos dos prefieres?",["Cuál","Qué","Quién","Cuánto"],0,"Elección entre opciones → cuál."]],
+t6:[["Él ___ (bañarse) en las noches.",["se baña","baña","se bañan","me baña"],0,"Él → se baña."],
+ ["¿A qué hora ___ (acostarse) tú?",["te acuestas","acuestas","te acostas","se acuesta"],0,"Tú → te acuestas (o→ue)."],
+ ["Hoy ___ (sentirse, yo) mucho mejor.",["me siento","siento","me sento","se siente"],0,"Sentirse: me siento."],
+ ["Los niños ___ (dormirse) temprano.",["se duermen","duermen","se dormen","nos dormimos"],0,"Dormirse: se duermen."],
+ ["Antes de salir, ___ (ponerse, yo) los zapatos.",["me pongo","pongo","me pono","se pone"],0,"Ponerse: me pongo."]],
+t7:[["Nos ___ mucho la playa.",["gusta","gustan","gustamos","gusto"],0,"La playa (singular) → gusta."],
+ ["A ti te ___ los deportes, ¿no?",["gustan","gusta","gustas","gustan a"],0,"Los deportes → gustan."],
+ ["A mi papá le ___ (encantar) cocinar.",["encanta","encantan","encanto","encante"],0,"Infinitivo → singular: encanta."],
+ ["___ falta una silla en la mesa.",["Nos","Nosotros","Nuestra","Se nos la"],0,"Faltar funciona como gustar: nos falta."],
+ ["A ellos no les ___ el tráfico.",["gusta","gustan","gusto","guste"],0,"El tráfico (singular) → gusta."]],
+t8:[["El libro está ___ la mesa.",["en","a","de","con"],0,"Sobre una superficie → en."],
+ ["Vengo ___ la oficina.",["de","a","en","por"],0,"Origen → de."],
+ ["Vamos ___ pie, está cerca.",["a","en","de","por"],0,"A pie (pero: en coche, en avión)."],
+ ["Un café ___ leche, por favor.",["con","de","a","en"],0,"Acompañamiento → con."],
+ ["Trabajo de nueve ___ cinco.",["a","hasta en","de","por"],0,"Rango: de … a …"]],
+t9:[["Anoche no ___ (dormir, yo) bien.",["dormí","dormió","dormía","duermo"],0,"Yo → dormí."],
+ ["¿___ (ver, tú) el partido ayer?",["Viste","Vistes","Veías","Ves"],0,"Ver: viste (sin -s extra)."],
+ ["La junta ___ (empezar) tarde.",["empezó","empezaba","empieza","empezara"],0,"Acción puntual → empezó."],
+ ["Nosotros ___ (comprar) la casa en 2024.",["compramos","compraron","comprábamos","compremos"],0,"Nosotros → compramos."],
+ ["Ella me ___ (escribir) un correo ayer.",["escribió","escribía","escribe","escribiera"],0,"Ella → escribió."]],
+t10:[["Ayer no ___ (poder, yo) llamarte.",["pude","podí","podía nunca","puedo"],0,"Poder → pude."],
+ ["Ellos ___ (venir) en coche.",["vinieron","venieron","vieneron","vendrán"],0,"Venir → vinieron."],
+ ["¿Dónde ___ (poner, tú) las llaves?",["pusiste","poniste","pusistes","pones"],0,"Poner → pusiste."],
+ ["Ella ___ (querer) venir, pero no pudo.",["quiso","querió","quería venir ayer","quiere"],0,"Querer → quiso."],
+ ["___ (haber) mucho tráfico ayer.",["Hubo","Había habido ayer","Hay","Habían"],0,"Hubo — impersonal, singular."]],
+t11:[["Cuando vivíamos en Austin, ___ (llover) poco.",["llovía","llovió una vez","llueve","lloverá"],0,"Descripción habitual → llovía."],
+ ["Yo ___ (jugar) fútbol de niño.",["jugaba","jugué siempre","juego","jugaría"],0,"Hábito pasado → jugaba."],
+ ["Mi mamá siempre ___ (cocinar) los domingos.",["cocinaba","cocinó","cocina","cocinara"],0,"“Siempre” → imperfecto."],
+ ["¿Tú ___ (ver) caricaturas de niño?",["veías","viste","ves","verías"],0,"Hábito → veías."],
+ ["En ese entonces no ___ (haber) internet.",["había","hubo","hay","habían"],0,"Situación de fondo → había."]],
+t12:[["___ (dormir, yo) cuando llegaste.",["Dormía","Dormí","Duermo","Dormiría"],0,"Acción en curso interrumpida → dormía."],
+ ["Ayer ___ (conocer, yo) a tu hermano.",["conocí","conocía","conozco","conociera"],0,"Primer encuentro puntual → conocí."],
+ ["Siempre ___ (ir, nosotros) a la playa en verano.",["íbamos","fuimos","vamos","iríamos"],0,"Hábito → íbamos."],
+ ["El teléfono sonó mientras ella ___ (cocinar).",["cocinaba","cocinó","cocina","cocinara"],0,"Fondo → imperfecto."],
+ ["El lunes ___ (perder, yo) mis llaves.",["perdí","perdía","pierdo","perdiera"],0,"Evento puntual → perdí."]],
+t13:[["¿Alguna vez ___ (estar, tú) en Oaxaca?",["has estado","has sido","estuviste haber","habías estar"],0,"Alguna vez → has estado."],
+ ["Este año ___ (viajar, nosotros) mucho.",["hemos viajado","viajamos haber","hemos viajando","habíamos viajar"],0,"Periodo abierto → hemos viajado."],
+ ["Todavía no he ___ (escribir) el reporte.",["escrito","escribido","escrivido","escribir"],0,"Escribir → escrito."],
+ ["Ellos han ___ (abrir) una tienda.",["abierto","abrido","abriendo","abre"],0,"Abrir → abierto."],
+ ["¿Qué ___ (hacer, tú) hoy?",["has hecho","has hacido","hiciste haber","haces hecho"],0,"Hacer → has hecho."]],
+t14:[["___ mucho que no veo a mis papás.",["Hace","Desde","Llevo","Durante"],0,"Hace mucho que…"],
+ ["Vivo aquí ___ hace dos años.",["desde","durante","por","en"],0,"Desde hace + tiempo."],
+ ["¿Cuánto tiempo ___ estudiando español?",["llevas","haces","tienes desde","estás hace"],0,"Llevar + gerundio."],
+ ["No como carne ___ enero.",["desde","hace","durante","por"],0,"Punto de inicio → desde."],
+ ["Hace un mes ___ (empezar, yo) el proyecto.",["empecé","empezaba","empiezo","empezara"],0,"Hace + pasado = ago → empecé."]],
+t15:[["Estoy ___ punto de salir.",["a","en","al","de"],0,"Estar a punto de."],
+ ["___ de llegar; dame un minuto.",["Acabo","Voy","Tengo","Termino"],0,"Acabar de = just did."],
+ ["Vamos ___ ver una película.",["a","de","que","para"],0,"Ir a + infinitivo."],
+ ["Ella tiene ___ estudiar más.",["que","de","a","para"],0,"Tener que."],
+ ["Voy a ___ temprano mañana.",["levantarme","me levantar","levantarse","levanto"],0,"Pronombre pegado al infinitivo."]],
+t16:[["¿El coche? ___ vendí el mes pasado.",["Lo","La","Le","Se"],0,"OD masculino → lo."],
+ ["A mis hijos ___ leo un cuento cada noche.",["les","los","le","se los"],0,"A ellos → les."],
+ ["¿La tarea? Mi hijo ya ___ hizo.",["la","lo","le","se"],0,"La tarea → la."],
+ ["¿Me das tu número? — Claro, ahorita ___ mando.",["te lo","te la","lo te","se lo"],0,"El número → te lo mando."],
+ ["¿Les dijiste a tus papás? — Sí, ya ___ dije.",["se lo","les lo","se les","le lo"],0,"Les + lo → se lo."]],
+t17:[["Cambié mi coche ___ uno más grande.",["por","para","con","de"],0,"Intercambio → por."],
+ ["Estudio español ___ hablar con mi equipo.",["para","por","a","de"],0,"Propósito → para."],
+ ["Pasamos ___ ti a las ocho.",["por","para","a","en"],0,"Pasar por alguien = recogerlo."],
+ ["___ mí, este restaurante es el mejor.",["Para","Por","A","De"],0,"Opinión → para mí."],
+ ["Vendí la moto ___ veinte mil pesos.",["por","para","en de","a"],0,"Precio/intercambio → por."]],
+t18:[["Me acuerdo ___ ese día.",["de","en","con","a"],0,"Acordarse de."],
+ ["Ella se casó ___ un mexicano.",["con","de","a","en"],0,"Casarse con."],
+ ["Trato ___ hacer ejercicio diario.",["de","a","en","por"],0,"Tratar de + infinitivo."],
+ ["Aprendimos ___ cocinar mole.",["a","de","en","para"],0,"Aprender a."],
+ ["No te preocupes ___ eso.",["por","de","en","a"],0,"Preocuparse por."]],
+t19:[["Llevo dos horas ___ (esperar).",["esperando","esperar","esperado","espero"],0,"Llevar + gerundio."],
+ ["Ellos andan ___ (buscar) casa.",["buscando","buscar","buscado","buscan"],0,"Andar + gerundio."],
+ ["Mira, está ___ (llover).",["lloviendo","llovendo","llueviendo","llovido"],0,"Llover → lloviendo."],
+ ["Los niños vienen ___ (correr).",["corriendo","correndo","corriendo a","corrido"],0,"Correr → corriendo."],
+ ["Sigue ___ (pedir) lo mismo.",["pidiendo","pediendo","pedindo","pedido"],0,"Pedir → pidiendo (e→i)."]],
+t20:[["Mi hija es ___ que su hermano.",["mayor","más vieja","más mayor","grande de"],0,"Edad: mayor que."],
+ ["Hoy hace ___ calor que ayer.",["más","tan","mucho de","tanto"],0,"Comparación → más … que."],
+ ["Es la ___ opción de todas.",["mejor","más buena","más mejor","buena"],0,"Superlativo irregular → mejor."],
+ ["Trabajo tanto ___ tú.",["como","que","cuanto","igual que de"],0,"Tanto … como."],
+ ["Es el restaurante más rico ___ la ciudad.",["de","en","que","entre"],0,"Superlativo + de."]],
+t21:[["No solo habla inglés, ___ también español.",["sino","pero","aunque","porque"],0,"No solo … sino también."],
+ ["___ del tráfico, llegué a tiempo.",["A pesar","Además","En vez","Por eso"],0,"A pesar de = despite."],
+ ["Estudia mucho; ___ lo tanto, pasará el examen.",["por","para","según","ante"],0,"Por lo tanto = therefore."],
+ ["___ llegues, avísame.",["En cuanto","Aunque de","Sino","A pesar de que ya"],0,"En cuanto + subjuntivo = as soon as."],
+ ["Me gusta el café, ___ prefiero té en la noche.",["pero","sino","porque","por eso"],0,"Contraste simple → pero."]],
+t22:[["El año que viene ___ (vivir, nosotros) en la playa.",["viviremos","vivimos","viviríamos","vivamos"],0,"Futuro → viviremos."],
+ ["¿A qué hora ___ (llegar) ellos?",["llegarán","llegaran","llegan mañana","llegarían ya"],0,"Futuro → llegarán."],
+ ["Mañana ___ (saber, yo) los resultados.",["sabré","saberé","sepa","sabría"],0,"Saber → sabr-: sabré."],
+ ["___ (haber) junta el lunes.",["Habrá","Haberá","Habrán","Hay que"],0,"Haber → habrá (singular)."],
+ ["Ella ___ (venir) en diciembre.",["vendrá","venirá","viene ya","vendría"],0,"Venir → vendr-: vendrá."]],
+t23:[["En tu lugar, yo ___ (hablar) con él.",["hablaría","hablaré","hablara","hablo"],0,"Consejo hipotético → hablaría."],
+ ["¿Te ___ (gustar) cenar fuera hoy?",["gustaría","gustará","gustara","gusta"],0,"Invitación suave → gustaría."],
+ ["Nosotros ___ (comprar) esa casa, pero es cara.",["compraríamos","compraremos","compramos","compráramos"],0,"Hipótesis → compraríamos."],
+ ["Él dijo que ___ (venir).",["vendría","vendrá","viene","venga"],0,"Futuro del pasado → vendría."],
+ ["Yo que tú, no lo ___ (hacer).",["haría","haré","hice","hiciera"],0,"Hacer → har-: haría."]],
+t24:[["___ (hablar, tú) más despacio, por favor.",["Habla","Hable","Hablas","Hablar"],0,"Tú afirmativo → habla."],
+ ["No ___ (llegar, tú) tarde.",["llegues","llega","llegas","llegarás"],0,"Negativo → subjuntivo: no llegues."],
+ ["___ (salir, tú) de ahí ahora.",["Sal","Sale","Salga","Sales"],0,"Salir → sal (irregular)."],
+ ["___ (tener, tú) cuidado en la carretera.",["Ten","Tiene","Tenga","Tener"],0,"Tener → ten."],
+ ["No se lo ___ (decir, tú) a nadie.",["digas","di","dices","dirás"],0,"Negativo → no lo digas."]],
+t25:[["Cuando llegamos, ya ___ (cerrar, ellos) el restaurante.",["habían cerrado","han cerrado","cerraban ya","hubieron cerrar"],0,"Pasado antes del pasado → habían cerrado."],
+ ["Nunca ___ (probar, yo) mole hasta que me mudé aquí.",["había probado","he probado ayer","probaba","probé haber"],0,"Había probado."],
+ ["Ella ya ___ (ver) esa película.",["había visto","ha visto ayer","veía ya","vio haber"],0,"Ver → había visto."],
+ ["No sabía que ___ (vivir, tú) en España.",["habías vivido","has vivido ayer","vivirías antes","vivieras"],0,"Habías vivido."],
+ ["Ya ___ (hacer, nosotros) la reservación cuando cancelaron.",["habíamos hecho","hemos hecho","hacíamos ya","hicimos haber"],0,"Habíamos hecho."]],
+t26:[["Necesito que me ___ (ayudar, tú).",["ayudes","ayudas","ayudarás","ayuda"],0,"Necesitar que + subjuntivo."],
+ ["Es mejor que ___ (salir, nosotros) temprano.",["salgamos","salimos","saldremos","salíamos"],0,"Salir → salgamos."],
+ ["Quiero que mis hijos ___ (ser) bilingües.",["sean","son","serán","eran"],0,"Ser → sean."],
+ ["No quiero que ___ (llegar, tú) tarde.",["llegues","llegas","llegarás","llegaste"],0,"Querer que + subjuntivo."],
+ ["Es posible que ___ (llover) hoy.",["llueva","llueve","lloverá","llovió"],0,"Posibilidad → subjuntivo."]],
+t27:[["Espero que todo ___ (salir) bien.",["salga","sale","saldrá","salió"],0,"Esperar que → salga."],
+ ["Es increíble que no ___ (haber) tráfico.",["haya","hay","habrá","hubo"],0,"Emoción/juicio → haya."],
+ ["Aunque ___ (estar) cansado, voy a ir.",["esté","estoy seguro","estaré","estuve"],0,"Aunque + duda → subjuntivo."],
+ ["Estoy seguro de que ___ (tener, tú) razón.",["tienes","tengas","tuvieras","hayas tenido"],0,"Certeza → indicativo: tienes."],
+ ["Busco un lugar que ___ (tener) estacionamiento.",["tenga","tiene","tendrá","tuvo"],0,"Antecedente indefinido → tenga."]],
+t28:[["Si ___ (vivir, nosotros) en la playa, nadaríamos diario.",["viviéramos","vivimos","viviríamos","vivamos"],0,"Si + imperfecto de subjuntivo."],
+ ["Me gustaría que ___ (venir, tú) con nosotros.",["vinieras","vengas","vendrías","vienes"],0,"Condicional + que → vinieras."],
+ ["Si él ___ (saber) la verdad, se enojaría.",["supiera","sabría","sabe","sepa"],0,"Saber → supiera."],
+ ["Ojalá ___ (poder, yo) viajar más.",["pudiera","podría","puedo","podré"],0,"Ojalá + deseo irreal → pudiera."],
+ ["Nos pidió que no ___ (decir, nosotros) nada.",["dijéramos","decíamos","diríamos","digamos"],0,"Pidió que → dijéramos."]],
+t29:[["“Tengo hambre” → Dijo que ___ hambre.",["tenía","tiene","tendría","tuviera"],0,"Presente → imperfecto."],
+ ["“Hice la tarea” → Dijo que ___ la tarea.",["había hecho","hizo ayer mismo","hacía","haría"],0,"Pasado → pluscuamperfecto."],
+ ["“¿Dónde vives?” → Me preguntó dónde ___.",["vivía","vivo","viviera","viviré"],0,"Presente → imperfecto."],
+ ["“Te llamaré” → Prometió que me ___.",["llamaría","llamará","llama","llame"],0,"Futuro → condicional."],
+ ["“No puedo ir” → Avisó que no ___ ir.",["podía","puede","pudiera","podrá"],0,"Presente → imperfecto."]],
+"t∞1":[["Estoy pensando ___ cambiar de coche.",["en","de","a","por"],0,"Pensar en + infinitivo (planear)."],
+ ["El camión sale ___ las ocho.",["a","en","por","de"],0,"Hora → a las ocho."],
+ ["Esta llave es ___ la puerta de atrás.",["para","por","de","a"],0,"Uso/destino → para."],
+ ["Caminamos ___ la playa una hora.",["por","en","a","hasta de"],0,"Movimiento a lo largo → por."],
+ ["Hablamos ___ teléfono anoche.",["por","en","a","con"],0,"Por teléfono."]],
+"t∞2":[["Presente: Yo ___ (traer) el postre.",["traigo","trao","traego","traes"],0,"Traer → traigo."],
+ ["Indefinido: Ella ___ (dar) las gracias.",["dio","dió","daba dar","dará"],0,"Dar → dio (sin tilde)."],
+ ["Imperfecto: Nosotros ___ (ser) vecinos.",["éramos","fuimos","somos","seríamos"],0,"Ser → éramos."],
+ ["Condicional: ¿___ (poder, tú) ayudarme?",["Podrías","Poderías","Puedas","Pudieras"],0,"Poder → podr-: podrías."],
+ ["Subjuntivo: Espero que no ___ (haber) problema.",["haya","hay","habrá","hubo"],0,"Haber → haya."]],
+"t★":[["“Órale” puede expresar…",["sorpresa o aprobación","enojo formal","tristeza","una despedida"],0,"Órale = wow / right on / let's go."],
+ ["¿Qué significa “la neta”?",["la verdad","la mentira","la comida","la fiesta"],0,"La neta = the truth / for real."],
+ ["“Está cañón” significa que algo…",["está difícil o intenso","está barato","está aburrido","está limpio"],0,"Cañón = tough/intense."],
+ ["Si algo te da “hueva”, te da…",["flojera","hambre","risa","miedo"],0,"Hueva = laziness / can't be bothered."],
+ ["“¿Mande?” se usa para…",["pedir que repitan algo","dar una orden","despedirse","pedir dinero"],0,"Mande = polite Mexican “what?/pardon?”."]]
+};
+const ALL=[]; PHASES.forEach((p,pi)=>p.topics.forEach(t=>{t.id='t'+t.n; t.pi=pi; if(t.quiz&&QUIZ2[t.id]) t.quiz=t.quiz.concat(QUIZ2[t.id]); ALL.push(t);}));
 const promptFor=t=>{
   const label=t.label||`#${t.n}: ${t.name}`;
   let out=TEMPLATE(label)+`\n\nToday's conversation angle: ${t.conv}`;
@@ -727,7 +890,7 @@ function customTopics(){
   const c=P().custom||{};
   return Object.keys(c).filter(k=>!c[k].del).map(cid=>{
     const it=c[cid], g=it.gen||{};
-    const quiz=(Array.isArray(g.quiz)&&g.quiz.length===5)?g.quiz:null;
+    const quiz=(Array.isArray(g.quiz)&&g.quiz.length>=10)?g.quiz:null;
     return {
       id:cid, n:'★', name:it.name,
       why:g.why||'Personal weak spot',
@@ -767,6 +930,7 @@ function avState(p){
   return 'happy';
 }
 const avSrc=(p,state)=>'avatars/'+avWho(p)+'-'+(state||avState(p))+'.png';
+const celebState=()=>avWho(P())==='ethan'?'congrats':'ecstatic';
 function profSolid(p){ const tt=p.topics||{}; return ALL.filter(x=>(tt[x.id]||{}).status==='solid').length; }
 function avatarPop(state,msg){
   const el=document.createElement('div'); el.className='avpop';
@@ -797,7 +961,6 @@ function renderDuel(){
   const xps=ordered.map(pid=>DB.profiles[pid].xp||0);
   const maxXp=Math.max(...xps);
   ordered.forEach((pid,i)=>{
-    if(i===1){ const vs=document.createElement('span'); vs.className='dvs'; vs.textContent='VS'; box.appendChild(vs); }
     const p=DB.profiles[pid];
     const solid=profSolid(p), pct=Math.round(solid/ALL.length*100);
     const crown=(maxXp>0&&(p.xp||0)===maxXp)?' 👑':'';
@@ -816,16 +979,12 @@ function nextPod(t){
   return {idx, title:ep[0], show:ep[1], url:ep[2]};
 }
 function mediaLines(t,s){
-  let out='';
-  if(PODS[t.id]){
-    const list=PODS[t.id], heard=(s.pods||[]).length, np=nextPod(t);
-    out+=`<p class="medialine">🎧 <b>${heard}/${list.length}</b> escuchados · siguiente: ${esc(np.title)} <span style="color:var(--faint)">· ${esc(np.show)}</span></p>`;
-  }
-  if(FC[t.id]){
-    const deck=FC[t.id];
-    out+=`<p class="medialine">🃏 ${s.fcDone?'<b>Completadas ✓</b>':`<b>${Math.min(s.fcIdx||0,deck.length)}/${deck.length}</b> tarjetas`}${(s.fcIdx&&!s.fcDone)?' — continúa donde quedaste':''}</p>`;
-  }
-  return out;
+  const parts=[];
+  if(s.sessions) parts.push(`🎙 ${s.sessions}`);
+  if(PODS[t.id]) parts.push(`🎧 ${(s.pods||[]).length}/${PODS[t.id].length}`);
+  if(FC[t.id]) parts.push(`🃏 ${s.fcDone?'✓':`${Math.min(s.fcIdx||0,FC[t.id].length)}/${FC[t.id].length}`}`);
+  if(t.quiz) parts.push(`📝 ${(s.best!==null&&s.best!==undefined)?`${s.best}/${t.quiz.length}${s.passed?' ✓':''}`:'—'}`);
+  return parts.length?`<p class="medialine">${parts.join(' &nbsp;·&nbsp; ')}</p>`:'';
 }
 function markPod(t){
   const list=PODS[t.id]; if(!list) return;
@@ -869,7 +1028,7 @@ function renderProfiles(){
     b.addEventListener('click',()=>{
       if(pid===activeId) return;
       activeId=pid; try{localStorage.setItem(PKEY,activeId);}catch(e){}
-      render(); toast('Perfil: '+DB.profiles[pid].name);
+      render();
     });
     box.appendChild(b);
   });
@@ -990,9 +1149,6 @@ function card(t){
   const s=st(t.id);
   const el=document.createElement('article');
   el.className='topic st-'+s.status; el.id='card-'+t.id;
-  const q=!t.quiz?'Quiz oral al final de cada sesión — marca sólido abajo cuando lo domines'
-        : s.best!==null?`Mejor quiz: <b class="${s.passed?'pass':''}">${s.best}/5</b>${s.passed?' ✓':''}`:'Quiz pendiente — pásalo (4/5) para marcar sólido';
-  const sess=s.sessions?`${s.sessions} sesión${s.sessions>1?'es':''}${s.last?' · última: '+new Date(s.last).toLocaleDateString('es-MX',{day:'numeric',month:'short'}):''}`:'Sin sesiones todavía';
   el.innerHTML=`
     <button class="topic-row" aria-expanded="false">
       <span class="tnum">${t.n}</span>
@@ -1000,24 +1156,13 @@ function card(t){
       <span class="tside">${statusChip(s.status)}<span class="tmeta">${t.custom?'personal':fmtMins(t.mins)}</span>${rivalMark(t)}</span>
     </button>
     <div class="tbody">
-      ${t.ex?`<p class="example">“${esc(t.ex)}”</p>`:''}
-      <p class="convo"><b>Hoy en la sesión:</b> ${esc(t.conv)}</p>
-      <p class="quizline">${q}</p>
       ${mediaLines(t,s)}
-      <div class="actions">
-        <a class="btn btn-primary" data-act="start" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener">🎙 Sesión de voz</a>
-      </div>
-      ${(PODS[t.id]||FC[t.id]||t.quiz)?`<div class="actions" style="margin-top:8px">
+      <div class="actions" style="margin-top:14px">
+        <a class="btn btn-primary" data-act="start" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener">🎙 Voz</a>
         ${PODS[t.id]?`<a class="btn btn-pod" data-act="pod" href="${esc(nextPod(t).url)}" target="_blank" rel="noopener">🎧 Podcast</a>`:''}
         ${FC[t.id]?`<button class="btn btn-cards" data-act="cards">🃏 Tarjetas</button>`:''}
-        ${t.quiz?'<button class="btn btn-quiz" data-act="quiz">Quiz</button>':''}
-      </div>`:''}
-      <p class="sessions-note">${sess} · Al abrir ChatGPT, toca el ícono de voz 🎙</p>
-      <div class="statusset" role="group" aria-label="Estado">
-        <button data-set="none" class="${s.status==='none'?'on-none':''}">Pendiente</button>
-        <button data-set="progress" class="${s.status==='progress'?'on-progress':''}">En curso</button>
-        <button data-set="solid" class="${s.status==='solid'?'on-solid':''}">Sólido</button>
       </div>
+      ${t.quiz?'<div class="actions" style="margin-top:8px"><button class="btn btn-quiz" data-act="quiz">📝 Quiz</button></div>':''}
       ${t.custom?'<button class="delT" data-act="del">Eliminar este tema</button>':''}
     </div>`;
   el.querySelector('.topic-row').addEventListener('click',()=>{
@@ -1034,9 +1179,6 @@ function card(t){
       toast('Tema eliminado');
     });
   });
-  el.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>{
-    const x=st(t.id); x.status=b.dataset.set; touch(x); save(); refresh(t);
-  }));
   return el;
 }
 
@@ -1127,7 +1269,7 @@ function finishCards(){
   const x=st(t.id); x.fcDone=true; x.fcIdx=0;
   setLast(t.id,'ai'); award(25);
   touch(x); save(); refresh(t);
-  confetti(); avatarPop('ecstatic','¡Tarjetas completadas! +25 XP');
+  confetti(); avatarPop(celebState(),'¡Tarjetas completadas! +25 XP');
   const hasPod=!!PODS[t.id]; const np=hasPod?nextPod(t):null;
   $('#sheet').innerHTML=`
     <div class="sheet-head"><h3 class="sheet-title display">${esc(t.name)}</h3></div>
@@ -1183,17 +1325,19 @@ function answer(k){
   setTimeout(()=>{ Q.i++; Q.i<Q.qs.length?drawQ():finishQuiz(); }, right?1100:2300);
 }
 function finishQuiz(){
-  const {t,score,qs}=Q; const pass=score>=4;
+  const {t,score,qs}=Q;
+  const need=Math.ceil(qs.length*0.8);
+  const pass=score>=need;
   const s=st(t.id);
   if(s.best===null||score>s.best) s.best=score;
-  if(pass){ s.passed=true; s.status='solid'; award(40); confetti(); avatarPop('ecstatic','¡Sólido! +40 XP'); }
+  if(pass){ s.passed=true; s.status='solid'; award(40); confetti(); avatarPop(celebState(),'¡Sólido! +40 XP'); }
   else { setLast(t.id,'ai'); award(10); avatarPop('embarrassed','Casi… +10 XP'); }
   touch(s); save(); refresh(t);
   $('#sheet').innerHTML=`
     <div class="sheet-head"><h3 class="sheet-title display">${esc(t.name)}</h3></div>
     <div class="result">
       <div class="big display">${score}/${qs.length}</div>
-      <div class="verdict ${pass?'pass':'fail'}">${pass?'¡Sólido! Tema dominado.':'Casi — necesitas 4/5.'}</div>
+      <div class="verdict ${pass?'pass':'fail'}">${pass?'¡Sólido! Tema dominado.':`Casi — necesitas ${need}/${qs.length}.`}</div>
       <p>${pass?'Marcado como sólido en tu lista.':'Haz otra sesión de voz sobre este tema y vuelve a intentarlo.'}</p>
       ${pass?'':`<button class="btn btn-quiz" id="retry">Reintentar</button>`}
       <button class="btn btn-secondary" id="qdone">Cerrar</button>
