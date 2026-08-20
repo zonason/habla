@@ -171,6 +171,13 @@
   .modal-hint{font-size:14px;color:var(--muted);margin:10px 0 0}
   .example{white-space:pre-wrap}
   @media (prefers-reduced-motion: reduce){ .toast{transition:none} }
+  .gate{position:fixed;inset:0;z-index:100;background:var(--ground);display:flex;align-items:center;justify-content:center;padding:24px}
+  .gate-box{width:100%;max-width:360px;text-align:center}
+  .gate-box .wordmark{font-size:52px}
+  .gate-msg{color:var(--muted);font-size:15px;margin:10px 0 22px}
+  .gate-err{color:var(--wrong);font-size:14px;font-weight:600;min-height:20px;margin-top:10px}
+  .gate .field{text-align:center;font-size:22px;letter-spacing:.1em}
+  .gate .btn{width:100%;margin-top:12px}
   @media (min-width:520px){ .overlay{align-items:center} .sheet{border-radius:18px} }
 </style>
 
@@ -199,6 +206,15 @@
   </footer>
 </div>
 
+<div class="gate" id="gate" hidden>
+  <div class="gate-box">
+    <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
+    <p class="gate-msg">App familiar — escribe el código de acceso.<br>Solo lo harás una vez en este teléfono.</p>
+    <input class="field" id="gateInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="····">
+    <button class="btn btn-primary" id="gateBtn">Entrar</button>
+    <p class="gate-err" id="gateErr"></p>
+  </div>
+</div>
 <button class="fab" id="addItemBtn">+ Add Item</button>
 <div class="overlay" id="addOverlay" role="dialog" aria-modal="true" aria-label="Nuevo tema">
   <div class="sheet tall">
@@ -603,6 +619,22 @@ async function push(){
     else setSyncUI('local');
   }
 }
+async function generateContent(cid){
+  if(!SYNC) return;                       // needs the family server (it holds the AI key)
+  const it=(P().custom||{})[cid];
+  if(!it||it.del||it.gen) return;
+  try{
+    const r=await fetch(SYNC+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:it.name,text:it.why})});
+    if(!r.ok) return;
+    const g=await r.json();
+    if(!g||!Array.isArray(g.quiz)||g.quiz.length!==5) return;
+    it.gen={why:String(g.why||''),example:String(g.example||''),conv:String(g.conv||''),quiz:g.quiz};
+    it.u=Date.now(); save(); render();
+    toast('✨ Contenido y quiz creados: '+it.name);
+  }catch(e){/* silent — the item still works with the template prompt */}
+}
+
 async function pullMerge(getServer){
   let server={profiles:{}};
   try{ server=migrateFlat(await getServer())||{profiles:{}}; }catch(e){}
@@ -636,16 +668,22 @@ const ALL=[]; PHASES.forEach((p,pi)=>p.topics.forEach(t=>{t.id='t'+t.n; t.pi=pi;
 const promptFor=t=>{
   const label=t.label||`#${t.n}: ${t.name}`;
   let out=TEMPLATE(label)+`\n\nToday's conversation angle: ${t.conv}`;
-  if(t.custom) out+=`\n\nThis is a personal weak spot I discovered myself${t.why&&t.why!=='Debilidad personal'?': '+t.why:''}. At the end of the session, give me a short oral quiz (5 quick questions) on exactly this, and tell me honestly whether I have mastered it or need another session.`;
+  if(t.custom) out+=`\n\nThis is a personal weak spot I discovered myself${t.userText&&t.userText!==t.name?': '+t.userText:''}. At the end of the session, give me a short oral quiz (5 quick questions) on exactly this, and tell me honestly whether I have mastered it or need another session.`;
   return out;
 };
 function customTopics(){
   const c=P().custom||{};
-  return Object.keys(c).filter(k=>!c[k].del).map(cid=>({
-    id:cid, n:'★', name:c[cid].name, why:c[cid].why||'Debilidad personal',
-    ex:(c[cid].why&&c[cid].why!==c[cid].name)?c[cid].why:null,
-    conv:c[cid].conv, mins:0, custom:true, label:'Personal: '+c[cid].name
-  }));
+  return Object.keys(c).filter(k=>!c[k].del).map(cid=>{
+    const it=c[cid], g=it.gen||{};
+    const quiz=(Array.isArray(g.quiz)&&g.quiz.length===5)?g.quiz:null;
+    return {
+      id:cid, n:'★', name:it.name,
+      why:g.why||'Personal weak spot',
+      ex:g.example||((it.why&&it.why!==it.name)?it.why:null),
+      conv:g.conv||it.conv, quiz,
+      userText:it.why, mins:0, custom:true, label:'Personal: '+it.name
+    };
+  });
 }
 
 /* ================= render ================= */
@@ -727,8 +765,12 @@ function render(){
 
 function customSection(){
   const list=customTopics();
-  const sec=document.createElement('section'); sec.className='custom-sec';
-  if(list.length) sec.style.marginTop='22px';
+  const sec=document.createElement('section'); sec.className='phase custom-sec';
+  if(!list.length) return sec;
+  sec.innerHTML=`<div class="phase-head" style="cursor:default"><div>
+      <p class="phase-eyebrow">Personal</p>
+      <h2 class="phase-title display">Added Items</h2>
+    </div><span class="phase-count">${list.length}</span></div>`;
   list.forEach(t=>sec.appendChild(card(t)));
   return sec;
 }
@@ -761,7 +803,8 @@ $('#niSave').addEventListener('click',()=>{
   P().custom[cid]={name, why:text, conv:'Drill me repeatedly on this specific weakness with rapid-fire conversational practice. Create realistic situations from my daily life that force me to use it again and again.', u:Date.now()};
   $('#addOverlay').classList.remove('show');
   save(); render();
-  toast('Tema agregado: '+name);
+  toast(SYNC?'Tema agregado — ✨ creando contenido…':'Tema agregado: '+name);
+  generateContent(cid);
 });
 
 function card(t){
@@ -836,12 +879,11 @@ function refresh(t){
 }
 
 function stats(){
-  const all=[...ALL,...customTopics()];
-  const total=all.length;
-  const solid=all.filter(t=>st(t.id).status==='solid');
-  const prog=all.filter(t=>st(t.id).status==='progress');
-  const sessions=all.reduce((a,t)=>a+st(t.id).sessions,0);
-  const minsLeft=all.filter(t=>st(t.id).status!=='solid').reduce((a,t)=>a+t.mins,0);
+  const total=ALL.length;
+  const solid=ALL.filter(t=>st(t.id).status==='solid');
+  const prog=ALL.filter(t=>st(t.id).status==='progress');
+  const sessions=ALL.reduce((a,t)=>a+st(t.id).sessions,0);
+  const minsLeft=ALL.filter(t=>st(t.id).status!=='solid').reduce((a,t)=>a+t.mins,0);
   $('#stat-solid').textContent=Math.round(solid.length/total*100)+'%';
   $('#stat-topics').textContent=solid.length+'/'+total;
   $('#stat-sessions').textContent=sessions;
@@ -938,6 +980,26 @@ $('#syncBtn').addEventListener('click',()=>{
   if(SYNC){ toast('Sincronización configurada'); initSync(); }
   else { setSyncUI('local'); toast('Sincronización desactivada'); }
 });
+
+/* ---- one-time device passcode gate ---- */
+(function(){
+  const OK='habla-gate-v1', CODE=atob('MzY5Mw==');   // casual gate, not cryptography
+  let unlocked=false;
+  try{ unlocked=localStorage.getItem(OK)==='ok'; }catch(e){}
+  if(unlocked) return;
+  const g=$('#gate'); g.hidden=false;
+  const tryCode=()=>{
+    if($('#gateInput').value.trim().toLowerCase()===CODE){
+      try{localStorage.setItem(OK,'ok');}catch(e){}
+      g.hidden=true;
+    }else{
+      $('#gateErr').textContent='Código incorrecto';
+      $('#gateInput').value=''; $('#gateInput').focus();
+    }
+  };
+  $('#gateBtn').addEventListener('click',tryCode);
+  $('#gateInput').addEventListener('keydown',e=>{ if(e.key==='Enter') tryCode(); });
+})();
 
 render();
 initSync();
