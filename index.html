@@ -921,7 +921,7 @@ function streakOf(p){
 }
 function avWho(p){ return (p.name||'').trim().toLowerCase()==='kate'?'kate':'ethan'; }
 function avState(p){
-  if(!p.seen) return 'bored';
+  if(!p.seen) return 'happy';   // fresh start — smiling until proven lazy
   const days=(Date.now()-p.seen)/86400000;
   if(days>=7) return 'dead';
   if(days>=5) return 'crying';
@@ -930,7 +930,7 @@ function avState(p){
   return 'happy';
 }
 const avSrc=(p,state)=>'avatars/'+avWho(p)+'-'+(state||avState(p))+'.png';
-const celebState=()=>'congrats';
+const celebState=()=>'ecstatic';
 function profSolid(p){ const tt=p.topics||{}; return ALL.filter(x=>(tt[x.id]||{}).status==='solid').length; }
 function avatarPop(state,msg){
   const el=document.createElement('div'); el.className='avpop';
@@ -1383,7 +1383,7 @@ $('#syncBtn').addEventListener('click',()=>{
 
 /* ---- one-time device passcode gate ---- */
 (function(){
-  const OK='habla-gate-v1', CODE=atob('MzY5Mw==');   // casual gate, not cryptography
+  const OK='habla-gate-v2', CODE=atob('MzY5Mw==');   // casual gate, not cryptography
   let unlocked=false;
   try{ unlocked=localStorage.getItem(OK)==='ok'; }catch(e){}
   if(unlocked) return;
