@@ -166,6 +166,7 @@
   .fc-back{font-size:16.5px;margin-top:14px;color:var(--ink);border-top:1.5px dashed var(--card-edge);padding-top:14px;white-space:pre-wrap}
   .fc-nav{display:flex;gap:8px;margin-top:16px}
   .ic{width:1.05em;height:1.05em;vertical-align:-0.15em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:inline-block}
+  .asep{border:none;border-top:1px solid var(--card-edge);margin:14px 0}
   .sessions-note{font-size:13px;color:var(--faint);margin-top:10px;text-align:center}
   .statusset{display:flex;gap:6px;margin-top:12px}
   .statusset button{flex:1;font:inherit;font-size:13.5px;font-weight:700;letter-spacing:.03em;padding:11px 4px;border-radius:9px;border:1px solid var(--card-edge);background:none;color:var(--muted);cursor:pointer}
@@ -1236,10 +1237,10 @@ function card(t){
       ${mediaLines(t,s)}
       <div class="actions" style="margin-top:14px">
         <a class="btn btn-primary" data-act="start" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener">${IC.ai} AI Tutor</a>
-        ${PODS[t.id]?`<a class="btn btn-pod" data-act="pod" href="${esc(nextPod(t).url)}" target="_blank" rel="noopener">${IC.pod} Podcast</a>`:''}
-        ${FC[t.id]?`<button class="btn btn-cards" data-act="cards">${IC.fc} Flashcards</button>`:''}
       </div>
-      ${t.quiz?`<div class="actions" style="margin-top:8px"><button class="btn btn-quiz" data-act="quiz">${IC.quiz} Quiz</button></div>`:''}
+      ${PODS[t.id]?`<div class="actions" style="margin-top:8px"><a class="btn btn-pod" data-act="pod" href="${esc(nextPod(t).url)}" target="_blank" rel="noopener">${IC.pod} Podcast</a></div>`:''}
+      ${FC[t.id]?`<div class="actions" style="margin-top:8px"><button class="btn btn-cards" data-act="cards">${IC.fc} Flashcards</button></div>`:''}
+      ${t.quiz?`<hr class="asep"><div class="actions"><button class="btn btn-quiz" data-act="quiz">${IC.quiz} Quiz</button></div>`:''}
       ${t.custom?'<button class="delT" data-act="del">Delete this item</button>':''}
     </div>`;
   el.querySelector('.topic-row').addEventListener('click',()=>{
