@@ -110,6 +110,15 @@
   .startbig .s1{font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
   .startbig .s2{font-family:'Archivo Black';font-size:23px;letter-spacing:-.01em;text-align:center}
   .startbig:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .startrow{display:flex;gap:8px;margin-top:16px;align-items:stretch}
+  .startrow .startbig{margin-top:0;flex:1;min-width:0}
+  .startdd{flex:none;width:54px;border:none;border-radius:14px;background:var(--rosa);color:var(--rosa-ink);font-size:20px;cursor:pointer;box-shadow:var(--shadow)}
+  .startdd span{display:inline-block;transition:transform .15s}
+  .startdd.open span{transform:rotate(180deg)}
+  .startdd:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .startmenu{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .startmenu .btn{width:100%}
+  @media (prefers-reduced-motion: reduce){ .startdd span{transition:none} }
   .phase-head{cursor:pointer;user-select:none;-webkit-user-select:none}
   .chev{display:inline-block;transition:transform .15s;color:var(--muted);font-size:12px;margin-left:6px}
   .phase.collapsed .chev{transform:rotate(-90deg)}
@@ -1131,10 +1140,12 @@ function renderStart(){
   if(mode==='fc'&&(!FC[t.id]||st(t.id).fcDone)) mode='ai';
   if(mode==='pod'&&!PODS[t.id]) mode='ai';
   const icons={ai:IC.ai,pod:IC.pod,fc:IC.fc};
+  const names={ai:'AI Tutor',pod:'Podcast',fc:'Flashcards'};
   const where=t.custom?'Added Item':esc((PHASES[t.pi]||{}).eyebrow||'');
+  const row=document.createElement('div'); row.className='startrow';
   const a=document.createElement('a');
   a.className='startbig';
-  a.innerHTML=`<span class="s1">${continuing?'Continuar':'Empezar ahora'} · ${where}</span><span class="s2">${icons[mode]} ${esc(t.name)}</span>`;
+  a.innerHTML=`<span class="s1">${where} · ${names[mode]}</span><span class="s2">${icons[mode]} ${esc(t.name)}</span>`;
   if(mode==='ai'){
     a.target='_blank'; a.rel='noopener';
     a.href='https://chatgpt.com/?q='+encodeURIComponent(promptFor(t));
@@ -1147,7 +1158,30 @@ function renderStart(){
     a.href='javascript:void(0)';
     a.addEventListener('click',e=>{ e.preventDefault(); openCards(t); });
   }
-  wrap.appendChild(a);
+  const dd=document.createElement('button');
+  dd.className='startdd'; dd.setAttribute('aria-label','All study options'); dd.setAttribute('aria-expanded','false');
+  dd.innerHTML='<span>▾</span>';
+  const menu=document.createElement('div'); menu.className='startmenu'; menu.hidden=true;
+  dd.addEventListener('click',()=>{
+    menu.hidden=!menu.hidden;
+    dd.classList.toggle('open',!menu.hidden);
+    dd.setAttribute('aria-expanded',String(!menu.hidden));
+  });
+  const opts=[];
+  if(FC[t.id]) opts.push({html:`${IC.fc} Flashcards`,cls:'btn btn-cards',fn:()=>{menu.hidden=true;openCards(t);}});
+  if(PODS[t.id]) opts.push({html:`${IC.pod} Podcast`,cls:'btn btn-pod',href:nextPod(t).url,fn:()=>markPod(t)});
+  opts.push({html:`${IC.ai} AI Tutor`,cls:'btn btn-primary',href:'https://chatgpt.com/?q='+encodeURIComponent(promptFor(t)),fn:()=>logAI(t)});
+  if(t.quiz) opts.push({html:`${IC.quiz} Quiz`,cls:'btn btn-quiz',fn:()=>{menu.hidden=true;openQuiz(t);}});
+  opts.forEach(o=>{
+    let el;
+    if(o.href){ el=document.createElement('a'); el.href=o.href; el.target='_blank'; el.rel='noopener'; }
+    else el=document.createElement('button');
+    el.className=o.cls; el.innerHTML=o.html;
+    el.addEventListener('click',o.fn);
+    menu.appendChild(el);
+  });
+  row.appendChild(a); row.appendChild(dd);
+  wrap.appendChild(row); wrap.appendChild(menu);
 }
 
 const phaseOpen={};  // per-session manual overrides
