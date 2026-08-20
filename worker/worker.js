@@ -53,7 +53,7 @@ export default {
       const text = String(body.text || '').slice(0, 2000);
       if (!name) return new Response('missing name', { status: 400, headers: cors });
 
-      const prompt = `You are creating content for a Spanish-learning app (Mexican Spanish, learner at A2/B1 level). The learner added a personal weak spot:
+      const prompt = `You are creating content for a Spanish-learning app (Mexican Spanish, learner at A2 level). The learner added a personal weak spot:
 
 Title: ${name}
 Learner's own description: ${text}
