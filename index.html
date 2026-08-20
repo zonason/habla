@@ -1014,15 +1014,15 @@ function openProfile(pid){
   const nameOf=tid=>{ if(p.custom&&p.custom[tid]) return p.custom[tid].name; const x=ALL.find(a=>a.id===tid); return x?x.name:'—'; };
   let lastTxt='No activity yet';
   if(p.last){
-    const modeTxt={ai:'🤖 AI Tutor',pod:'🎧 Podcast',fc:'📇 Flashcards'}[p.last.mode]||'Activity';
+    const modeTxt={ai:'🎧🎙 AI Tutor',pod:'🎧 Podcast',fc:'🗂️ Flashcards'}[p.last.mode]||'Activity';
     lastTxt=`${modeTxt} — ${esc(nameOf(p.last.tid))} · ${fmtAgo(p.last.ts)}`;
   }
   const dotFor=s=>s==='solid'?'solid':s==='progress'?'prog':'';
   const miniFor=x=>{
     const parts=[];
-    if(x.sessions) parts.push('🤖'+x.sessions);
+    if(x.sessions) parts.push('🎧🎙'+x.sessions);
     if((x.pods||[]).length) parts.push('🎧'+x.pods.length);
-    if(x.fcDone) parts.push('📇✓');
+    if(x.fcDone) parts.push('🗂️✓');
     if(x.best!==null&&x.best!==undefined) parts.push('📝'+x.best);
     return parts.join(' ');
   };
@@ -1064,9 +1064,9 @@ function nextPod(t){
 function mediaLines(t,s){
   const parts=[];
   parts.push(`⏱ ${t.custom?'personal':fmtMins(t.mins)}`);
-  if(s.sessions) parts.push(`🤖 ${s.sessions}`);
+  if(s.sessions) parts.push(`🎧🎙 ${s.sessions}`);
   if(PODS[t.id]) parts.push(`🎧 ${(s.pods||[]).length}/${PODS[t.id].length}`);
-  if(FC[t.id]) parts.push(`📇 ${s.fcDone?'✓':`${Math.min(s.fcIdx||0,FC[t.id].length)}/${FC[t.id].length}`}`);
+  if(FC[t.id]) parts.push(`🗂️ ${s.fcDone?'✓':`${Math.min(s.fcIdx||0,FC[t.id].length)}/${FC[t.id].length}`}`);
   if(t.quiz) parts.push(`📝 ${(s.best!==null&&s.best!==undefined)?`${s.best}/${t.quiz.length}${s.passed?' ✓':''}`:'—'}`);
   return parts.length?`<p class="medialine">${parts.join(' &nbsp;·&nbsp; ')}</p>`:'';
 }
@@ -1120,7 +1120,7 @@ function renderStart(){
   if(!t){ wrap.innerHTML='<div class="startbig" style="cursor:default"><span class="s2">🏆 ¡Todo sólido!</span></div>'; return; }
   if(mode==='fc'&&(!FC[t.id]||st(t.id).fcDone)) mode='ai';
   if(mode==='pod'&&!PODS[t.id]) mode='ai';
-  const icons={ai:'🤖',pod:'🎧',fc:'📇'};
+  const icons={ai:'🎧🎙',pod:'🎧',fc:'🗂️'};
   const where=t.custom?'Added Item':esc((PHASES[t.pi]||{}).eyebrow||'');
   const a=document.createElement('a');
   a.className='startbig';
@@ -1226,9 +1226,9 @@ function card(t){
     <div class="tbody">
       ${mediaLines(t,s)}
       <div class="actions" style="margin-top:14px">
-        <a class="btn btn-primary" data-act="start" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener">🤖 AI Tutor</a>
+        <a class="btn btn-primary" data-act="start" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener">🎧🎙 AI Tutor</a>
         ${PODS[t.id]?`<a class="btn btn-pod" data-act="pod" href="${esc(nextPod(t).url)}" target="_blank" rel="noopener">🎧 Podcast</a>`:''}
-        ${FC[t.id]?`<button class="btn btn-cards" data-act="cards">📇 Flashcards</button>`:''}
+        ${FC[t.id]?`<button class="btn btn-cards" data-act="cards">🗂️ Flashcards</button>`:''}
       </div>
       ${t.quiz?'<div class="actions" style="margin-top:8px"><button class="btn btn-quiz" data-act="quiz">📝 Quiz</button></div>':''}
       ${t.custom?'<button class="delT" data-act="del">Delete this item</button>':''}
@@ -1304,7 +1304,7 @@ function drawFC(){
   const showBack=!isQuiz||revealed;
   $('#sheet').innerHTML=`
     <div class="sheet-head"><h3 class="sheet-title display">${esc(t.name)}</h3>
-      <span class="sheet-sub">📇 ${i+1} / ${deck.length}</span></div>
+      <span class="sheet-sub">🗂️ ${i+1} / ${deck.length}</span></div>
     <div class="fc-card ${isQuiz?'quiz':'teach'}">
       <div class="fc-type">${isQuiz?'Quiz — dilo en voz alta':'Regla'}</div>
       <div class="fc-front">${esc(front)}</div>
@@ -1346,7 +1346,7 @@ function finishCards(){
       <div class="verdict pass">¡Tarjetas completadas!</div>
       <p>Ahora fíjalo: escucha un episodio o habla con tu tutor.</p>
       ${hasPod?`<a class="btn btn-pod" id="fcPod" href="${esc(np.url)}" target="_blank" rel="noopener" style="margin-top:14px">🎧 Podcast: ${esc(np.title)}</a>`:''}
-      <a class="btn btn-primary" id="fcAI" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener" style="margin-top:10px">🤖 AI Tutor session</a>
+      <a class="btn btn-primary" id="fcAI" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener" style="margin-top:10px">🎧🎙 AI Tutor session</a>
       <button class="btn btn-secondary" id="fcDone2" style="margin-top:10px">Cerrar</button>
     </div>`;
   const closeFs=()=>{ $('#overlay').classList.remove('show'); $('#overlay').classList.remove('fs'); FCS=null; };
