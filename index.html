@@ -63,8 +63,15 @@
   .totalbar{margin-top:14px;height:8px;border-radius:99px;background:var(--track);overflow:hidden;display:flex}
   .totalbar .seg-solid{background:var(--green)}
   .totalbar .seg-prog{background:var(--gold)}
-  .howto{display:flex;gap:10px;align-items:flex-start;background:var(--cobalt-soft);border-radius:10px;padding:12px 14px;margin-top:16px;font-size:13.5px;color:var(--ink)}
-  .howto .n{flex:none;font-family:'Archivo Black';color:var(--cobalt);font-size:13px;padding-top:1px}
+  .startbig{display:flex;flex-direction:column;align-items:center;gap:3px;width:100%;box-sizing:border-box;margin-top:16px;padding:16px 14px;border-radius:14px;background:var(--rosa);color:var(--rosa-ink);text-decoration:none;box-shadow:var(--shadow)}
+  .startbig .s1{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
+  .startbig .s2{font-family:'Archivo Black';font-size:19px;letter-spacing:-.01em;text-align:center}
+  .startbig:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .phase-head{cursor:pointer;user-select:none;-webkit-user-select:none}
+  .chev{display:inline-block;transition:transform .15s;color:var(--muted);font-size:12px;margin-left:6px}
+  .phase.collapsed .chev{transform:rotate(-90deg)}
+  .phase.collapsed .topic{display:none}
+  @media (prefers-reduced-motion: reduce){ .chev{transition:none} }
 
   /* ---------- phases ---------- */
   .phase{margin-top:30px}
@@ -162,10 +169,7 @@
       <div class="stat"><b id="stat-left">—</b><span>Horas rest.</span></div>
     </div>
     <div class="totalbar" id="totalbar" role="img" aria-label="Progreso total"></div>
-    <div class="howto">
-      <span class="n">1→2→3</span>
-      <span><b>Toca “Sesión de voz”</b> — el prompt se copia y ChatGPT se abre con tu tutor listo. Luego toca el ícono de voz&nbsp;🎙 en ChatGPT y empieza a hablar. Al terminar, regresa y haz el quiz para marcarlo sólido.</span>
-    </div>
+    <div id="startWrap"></div>
   </header>
 
   <main id="phases"></main>
@@ -630,48 +634,66 @@ function renderProfiles(){
     });
     box.appendChild(b);
   });
-  const add=document.createElement('button');
-  add.className='pchip add'; add.textContent='+ Perfil';
-  add.addEventListener('click',()=>{
-    const name=(prompt('Nombre del nuevo perfil:')||'').trim();
-    if(!name) return;
-    const pid='p'+Date.now().toString(36);
-    DB.profiles[pid]={name,topics:{},reset:0};
-    activeId=pid; save(); render();
-    toast('Perfil creado: '+name);
-  });
-  box.appendChild(add);
 }
 
+function nextTopic(){
+  for(const p of PHASES) for(const t of p.topics) if(st(t.id).status!=='solid') return t;
+  return null;
+}
+function renderStart(){
+  const wrap=$('#startWrap'); wrap.innerHTML='';
+  const t=nextTopic();
+  if(!t){ wrap.innerHTML='<div class="startbig" style="cursor:default"><span class="s2">🏆 ¡Todo sólido!</span></div>'; return; }
+  const a=document.createElement('a');
+  a.className='startbig'; a.target='_blank'; a.rel='noopener';
+  a.href='https://chatgpt.com/?q='+encodeURIComponent(promptFor(t));
+  a.innerHTML=`<span class="s1">Empezar ahora · ${esc(PHASES[t.pi].eyebrow)}</span><span class="s2">🎙 ${esc(t.name)}</span>`;
+  a.addEventListener('click',()=>{
+    copyText(promptFor(t));
+    const x=st(t.id); x.sessions++; x.last=Date.now();
+    if(x.status==='none') x.status='progress';
+    touch(x); save(); refresh(t);
+    toast('Prompt copiado · abriendo ChatGPT — toca el ícono de voz 🎙');
+  });
+  wrap.appendChild(a);
+}
+
+const phaseOpen={};  // per-session manual overrides
 function render(){
   renderProfiles();
+  renderStart();
   const root=$('#phases'); root.innerHTML='';
-  PHASES.forEach(p=>{
+  root.appendChild(customSection());
+  const next=nextTopic(); const activePi=next?next.pi:-1;
+  PHASES.forEach((p,pi)=>{
     const done=p.topics.filter(t=>st(t.id).status==='solid').length;
     const sec=document.createElement('section'); sec.className='phase';
-    sec.innerHTML=`<div class="phase-head"><div>
+    const open=phaseOpen[pi]!==undefined?phaseOpen[pi]:pi===activePi;
+    if(!open) sec.classList.add('collapsed');
+    sec.innerHTML=`<div class="phase-head" role="button" tabindex="0" aria-expanded="${open}"><div>
         <p class="phase-eyebrow">${p.eyebrow}</p>
         <h2 class="phase-title display">${p.name}</h2>
-      </div><span class="phase-count">${done}/${p.topics.length}</span></div>`;
+      </div><span class="phase-count">${done}/${p.topics.length}<span class="chev">▾</span></span></div>`;
+    const head=sec.querySelector('.phase-head');
+    const toggle=()=>{
+      const nowOpen=sec.classList.toggle('collapsed')===false;
+      phaseOpen[pi]=nowOpen; head.setAttribute('aria-expanded',nowOpen);
+    };
+    head.addEventListener('click',toggle);
+    head.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();} });
     p.topics.forEach(t=>sec.appendChild(card(t)));
     root.appendChild(sec);
   });
-  root.appendChild(customSection());
   stats();
 }
 
 function customSection(){
   const list=customTopics();
-  const done=list.filter(t=>st(t.id).status==='solid').length;
-  const sec=document.createElement('section'); sec.className='phase custom-sec';
-  sec.innerHTML=`<div class="phase-head"><div>
-      <p class="phase-eyebrow">Personal</p>
-      <h2 class="phase-title display">Mis debilidades</h2>
-    </div><span class="phase-count" id="customCount">${done}/${list.length}</span></div>
-    <p class="custom-hint">Agrega lo que descubras que se te dificulta — en clase, en la calle, en una sesión. Cada tema se vuelve una sesión de voz enfocada.</p>`;
+  const sec=document.createElement('section'); sec.className='custom-sec';
+  sec.style.marginTop='22px';
   list.forEach(t=>sec.appendChild(card(t)));
   const add=document.createElement('button');
-  add.className='addtopic'; add.textContent='+ Agregar debilidad';
+  add.className='addtopic'; add.textContent='+ Add Item';
   add.addEventListener('click',()=>{
     const name=(prompt('¿Qué tema se te dificulta? (p. ej. “ya vs. todavía”, “números grandes”, “teléfono con el plomero”)')||'').trim();
     if(!name) return;
@@ -753,8 +775,7 @@ function refresh(t){
     const p=PHASES[i]; if(!p) return;
     sec.querySelector('.phase-count').textContent=p.topics.filter(x=>st(x.id).status==='solid').length+'/'+p.topics.length;
   });
-  const cc=document.getElementById('customCount');
-  if(cc){ const list=customTopics(); cc.textContent=list.filter(x=>st(x.id).status==='solid').length+'/'+list.length; }
+  renderStart();
   stats();
 }
 
