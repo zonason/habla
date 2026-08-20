@@ -183,6 +183,7 @@
   .example{white-space:pre-wrap}
   @media (prefers-reduced-motion: reduce){ .toast{transition:none} }
   .gate{position:fixed;inset:0;z-index:100;background:var(--ground);display:flex;align-items:center;justify-content:center;padding:24px}
+  .gate[hidden]{display:none!important}
   .gate-box{width:100%;max-width:360px;text-align:center}
   .gate-box .wordmark{font-size:52px}
   .gate-msg{color:var(--muted);font-size:15px;margin:10px 0 22px}
@@ -221,7 +222,7 @@
   <div class="gate-box">
     <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
     <p class="gate-msg">App familiar — escribe el código de acceso.<br>Solo lo harás una vez en este teléfono.</p>
-    <input class="field" id="gateInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="····">
+    <input class="field" id="gateInput" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="····">
     <button class="btn btn-primary" id="gateBtn">Entrar</button>
     <p class="gate-err" id="gateErr"></p>
   </div>
