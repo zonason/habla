@@ -65,6 +65,27 @@
   .pchip.active{background:var(--rosa);border-color:var(--rosa);color:var(--rosa-ink)}
   .pchip.add{border-style:dashed;background:none}
   .pchip:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .duel{display:flex;align-items:center;gap:8px;margin-top:14px}
+  .dvs{flex:none;font-family:'Archivo Black';font-size:13px;color:var(--rosa)}
+  .dcard{flex:1;min-width:0;background:var(--card);border:1px solid var(--card-edge);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;box-shadow:var(--shadow)}
+  .dcard img{width:54px;height:54px;object-fit:cover;object-position:top;border-radius:10px;flex:none;background:var(--track)}
+  .dmain{flex:1;min-width:0}
+  .dn{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dstats{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:1px;white-space:nowrap}
+  .dbar{height:5px;border-radius:99px;background:var(--track);margin-top:6px;overflow:hidden}
+  .dbar b{display:block;height:100%;background:var(--green)}
+  .rmark{font-size:11px;color:var(--green);font-weight:700;white-space:nowrap}
+  .avpop{position:fixed;left:50%;bottom:calc(160px + env(safe-area-inset-bottom));transform:translateX(-50%) scale(.8);opacity:0;transition:opacity .25s,transform .25s;z-index:95;background:var(--card);border:1px solid var(--card-edge);border-radius:16px;padding:10px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);max-width:88vw}
+  .avpop.show{opacity:1;transform:translateX(-50%) scale(1)}
+  .avpop img{width:58px;height:58px;object-fit:cover;object-position:top;border-radius:10px}
+  .avpop span{font-weight:700;font-size:15.5px}
+  .confetti{position:fixed;inset:0;pointer-events:none;z-index:90;overflow:hidden}
+  .confetti i{position:absolute;top:-14px;width:9px;height:14px;display:block;animation:cfall linear forwards}
+  @keyframes cfall{to{transform:translateY(108vh) rotate(720deg)}}
+  .overlay.fs{align-items:stretch;padding:0}
+  .overlay.fs .sheet{max-width:none;max-height:none;height:100%;border-radius:0;display:flex;flex-direction:column;padding-top:calc(20px + env(safe-area-inset-top))}
+  .overlay.fs .fc-card{flex:1;overflow-y:auto}
+  @media (prefers-reduced-motion: reduce){ .avpop{transition:none} }
   .hero-stats{display:flex;gap:10px;margin-top:18px}
   .stat{flex:1;background:var(--card);border:1px solid var(--card-edge);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow)}
   .stat b{display:block;font-size:25px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
@@ -198,6 +219,7 @@
     <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
     <p class="tagline">Español mexicano · A2/B1 → B2</p>
     <div class="profiles" id="profiles" role="group" aria-label="Perfil"></div>
+    <div class="duel" id="duel"></div>
     <div class="hero-stats">
       <div class="stat"><b id="stat-solid">0%</b><span>Sólido</span></div>
       <div class="stat"><b id="stat-topics">0/31</b><span>Temas</span></div>
@@ -601,7 +623,12 @@ function mergeDB(a,b){
       const ra=(pa.custom||{})[cid], rb=(pb.custom||{})[cid];
       custom[cid]=!ra?rb:!rb?ra:((rb.u||0)>(ra.u||0)?rb:ra);
     });
-    out.profiles[pid]={name:pb.name||pa.name,topics,custom,reset};
+    const last=(pa.last&&pb.last)?(((pb.last.ts||0)>=(pa.last.ts||0))?pb.last:pa.last):(pa.last||pb.last);
+    out.profiles[pid]={name:pb.name||pa.name,topics,custom,reset,
+      xp:Math.max(pa.xp||0,pb.xp||0),
+      act:Object.assign({},pa.act||{},pb.act||{}),
+      seen:Math.max(pa.seen||0,pb.seen||0),
+      last, lastTs:Math.max(pa.lastTs||0,pb.lastTs||0)};
   });
   return out;
 }
@@ -715,6 +742,73 @@ function customTopics(){
 const $=s=>document.querySelector(s);
 const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
+/* ---- gamification: XP, streaks, avatars ---- */
+const dstr=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function award(n){
+  const p=P(); p.xp=(p.xp||0)+n;
+  (p.act=p.act||{})[dstr(new Date())]=((p.act||{})[dstr(new Date())]||0)+n;
+  p.seen=Date.now();
+}
+function setLast(tid,mode){ const p=P(); p.last={tid,mode,ts:Date.now()}; p.lastTs=Date.now(); }
+function streakOf(p){
+  const a=p.act||{}; let n=0; const d=new Date();
+  if(!a[dstr(d)]) d.setDate(d.getDate()-1);
+  while(a[dstr(d)]){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function avWho(p){ return (p.name||'').trim().toLowerCase()==='kate'?'kate':'ethan'; }
+function avState(p){
+  if(!p.seen) return 'bored';
+  const days=(Date.now()-p.seen)/86400000;
+  if(days>=7) return 'dead';
+  if(days>=5) return 'crying';
+  if(days>=3) return 'sad';
+  if(days>=1.5) return 'bored';
+  return 'happy';
+}
+const avSrc=(p,state)=>'avatars/'+avWho(p)+'-'+(state||avState(p))+'.png';
+function profSolid(p){ const tt=p.topics||{}; return ALL.filter(x=>(tt[x.id]||{}).status==='solid').length; }
+function avatarPop(state,msg){
+  const el=document.createElement('div'); el.className='avpop';
+  el.innerHTML=`<img src="${avSrc(P(),state)}" alt="" onerror="this.remove()"><span>${esc(msg)}</span>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),300); },2800);
+}
+function confetti(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c=document.createElement('div'); c.className='confetti';
+  const colors=['#d40f6f','#2547b0','#e8a020','#1e8a5a','#ff5ca8','#93aaff'];
+  for(let i=0;i<54;i++){
+    const s=document.createElement('i');
+    s.style.left=(Math.random()*100)+'vw';
+    s.style.background=colors[i%colors.length];
+    s.style.animationDelay=(Math.random()*0.7)+'s';
+    s.style.animationDuration=(1.8+Math.random()*1.5)+'s';
+    c.appendChild(s);
+  }
+  document.body.appendChild(c);
+  setTimeout(()=>c.remove(),3800);
+}
+function renderDuel(){
+  const box=$('#duel'); box.innerHTML='';
+  const pids=Object.keys(DB.profiles); if(pids.length<2) return;
+  const ordered=[activeId,...pids.filter(p=>p!==activeId)];
+  const xps=ordered.map(pid=>DB.profiles[pid].xp||0);
+  const maxXp=Math.max(...xps);
+  ordered.forEach((pid,i)=>{
+    if(i===1){ const vs=document.createElement('span'); vs.className='dvs'; vs.textContent='VS'; box.appendChild(vs); }
+    const p=DB.profiles[pid];
+    const solid=profSolid(p), pct=Math.round(solid/ALL.length*100);
+    const crown=(maxXp>0&&(p.xp||0)===maxXp)?' 👑':'';
+    const d=document.createElement('div'); d.className='dcard';
+    d.innerHTML=`<img src="${avSrc(p)}" alt="" onerror="this.remove()">
+      <div class="dmain"><div class="dn">${esc(p.name)}${crown}</div>
+      <div class="dstats">⚡${p.xp||0} · 🔥${streakOf(p)} · ${pct}%</div>
+      <div class="dbar"><b style="width:${pct}%"></b></div></div>`;
+    box.appendChild(d);
+  });
+}
 function nextPod(t){
   const list=PODS[t.id]||[];
   const idx=((st(t.id).podNext||0))%list.length;
@@ -740,17 +834,24 @@ function markPod(t){
   x.pods=x.pods||[]; if(!x.pods.includes(idx)) x.pods.push(idx);
   x.podNext=idx+1; x.last=Date.now();
   if(x.status==='none') x.status='progress';
-  P().last={tid:t.id,mode:'pod',ts:Date.now()};
+  setLast(t.id,'pod'); award(15);
   touch(x); save(); refresh(t);
-  toast('🎧 Episodio marcado — se abre el podcast');
+  toast('🎧 +15 XP — se abre el podcast');
 }
 function logAI(t){
   copyText(promptFor(t));
   const x=st(t.id); x.sessions++; x.last=Date.now();
   if(x.status==='none') x.status='progress';
-  P().last={tid:t.id,mode:'ai',ts:Date.now()};
+  setLast(t.id,'ai'); award(20);
   touch(x); save(); refresh(t);
-  toast('Prompt copiado · abriendo ChatGPT — toca el ícono de voz 🎙');
+  toast('+20 XP · prompt copiado — toca el ícono de voz 🎙 en ChatGPT');
+}
+function rivalMark(t){
+  if(t.custom) return '';
+  const done=Object.entries(DB.profiles)
+    .filter(([pid,p])=>pid!==activeId && ((p.topics||{})[t.id]||{}).status==='solid')
+    .map(([pid,p])=>esc((p.name||'').split(' ')[0]));
+  return done.length?`<span class="rmark">${done.join(', ')} ✓</span>`:'';
 }
 function statusChip(s){
   return s==='solid'?'<span class="chip solid">Sólido</span>'
@@ -814,6 +915,7 @@ function renderStart(){
 const phaseOpen={};  // per-session manual overrides
 function render(){
   renderProfiles();
+  renderDuel();
   renderStart();
   const root=$('#phases'); root.innerHTML='';
   root.appendChild(customSection());
@@ -895,7 +997,7 @@ function card(t){
     <button class="topic-row" aria-expanded="false">
       <span class="tnum">${t.n}</span>
       <span class="tmain"><span class="tname">${esc(t.name)}</span><span class="twhy">${esc(t.why)}</span></span>
-      <span class="tside">${statusChip(s.status)}<span class="tmeta">${t.custom?'personal':fmtMins(t.mins)}</span></span>
+      <span class="tside">${statusChip(s.status)}<span class="tmeta">${t.custom?'personal':fmtMins(t.mins)}</span>${rivalMark(t)}</span>
     </button>
     <div class="tbody">
       ${t.ex?`<p class="example">“${esc(t.ex)}”</p>`:''}
@@ -904,13 +1006,12 @@ function card(t){
       ${mediaLines(t,s)}
       <div class="actions">
         <a class="btn btn-primary" data-act="start" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener">🎙 Sesión de voz</a>
-        ${t.quiz?'<button class="btn btn-quiz" data-act="quiz">Quiz</button>':''}
       </div>
-      ${(PODS[t.id]||FC[t.id])?`<div class="actions" style="margin-top:8px">
+      ${(PODS[t.id]||FC[t.id]||t.quiz)?`<div class="actions" style="margin-top:8px">
         ${PODS[t.id]?`<a class="btn btn-pod" data-act="pod" href="${esc(nextPod(t).url)}" target="_blank" rel="noopener">🎧 Podcast</a>`:''}
         ${FC[t.id]?`<button class="btn btn-cards" data-act="cards">🃏 Tarjetas</button>`:''}
-        <button class="btn btn-secondary" data-act="copy">Copiar</button>
-      </div>`:`<div class="actions" style="margin-top:8px"><button class="btn btn-secondary" data-act="copy">Copiar prompt</button></div>`}
+        ${t.quiz?'<button class="btn btn-quiz" data-act="quiz">Quiz</button>':''}
+      </div>`:''}
       <p class="sessions-note">${sess} · Al abrir ChatGPT, toca el ícono de voz 🎙</p>
       <div class="statusset" role="group" aria-label="Estado">
         <button data-set="none" class="${s.status==='none'?'on-none':''}">Pendiente</button>
@@ -926,9 +1027,6 @@ function card(t){
   el.querySelector('[data-act="start"]').addEventListener('click',()=>logAI(t));
   const pb=el.querySelector('[data-act="pod"]'); if(pb) pb.addEventListener('click',()=>markPod(t));
   const cb=el.querySelector('[data-act="cards"]'); if(cb) cb.addEventListener('click',()=>openCards(t));
-  el.querySelector('[data-act="copy"]').addEventListener('click',()=>{
-    copyText(promptFor(t)); toast('Prompt copiado — pégalo donde quieras');
-  });
   const qb=el.querySelector('[data-act="quiz"]'); if(qb) qb.addEventListener('click',()=>openQuiz(t));
   const db=el.querySelector('[data-act="del"]'); if(db) db.addEventListener('click',()=>{
     confirmSheet('Se eliminará el tema “'+t.name+'” y su progreso.',()=>{
@@ -952,6 +1050,7 @@ function refresh(t){
     const p=PHASES[i]; if(!p) return;
     sec.querySelector('.phase-count').textContent=p.topics.filter(x=>st(x.id).status==='solid').length+'/'+p.topics.length;
   });
+  renderDuel();
   renderStart();
   stats();
 }
@@ -975,11 +1074,19 @@ function openCards(t){
   const deck=FC[t.id]; if(!deck) return;
   const x=st(t.id);
   if(x.status==='none') x.status='progress';
-  P().last={tid:t.id,mode:'fc',ts:Date.now()};
+  setLast(t.id,'fc');
   touch(x); save();
   FCS={t,deck,i:x.fcDone?0:Math.min(x.fcIdx||0,deck.length-1),revealed:false};
-  $('#overlay').classList.add('show');
+  $('#overlay').classList.add('show'); $('#overlay').classList.add('fs');
   drawFC();
+}
+function fmtBack(s){
+  let x=s;
+  x=x.replace(/\s*\((\d+)\)\s*/g,'\n• ');                                   // (1) (2) (3) → bullets
+  x=x.replace(/\.\s+(?=-[A-ZÁÉÍÓÚ]{2}:)/g,'.\n• ').replace(/^(?=-[A-ZÁÉÍÓÚ]{2}:)/,'• ');  // -AR: -ER: -IR:
+  x=x.replace(/\.\s+(?=[A-ZÁÉÍÓÚ][A-ZÁÉÍÓÚ→ ]{1,12}:\s)/g,'.\n• ').replace(/^(?=[A-ZÁÉÍÓÚ]{2,8}:\s)/,'• ');  // SER: / E→IE:
+  x=x.replace(/\.\s+(?=(Key|Note|Rule of thumb|Also|The rest|These)\b)/g,'.\n');
+  return x.trim();
 }
 function drawFC(){
   const {t,deck,i,revealed}=FCS;
@@ -991,7 +1098,7 @@ function drawFC(){
     <div class="fc-card ${isQuiz?'quiz':'teach'}">
       <div class="fc-type">${isQuiz?'Quiz — dilo en voz alta':'Regla'}</div>
       <div class="fc-front">${esc(front)}</div>
-      ${showBack?`<div class="fc-back">${esc(back)}</div>`:''}
+      ${showBack?`<div class="fc-back">${esc(fmtBack(back))}</div>`:''}
     </div>
     <div class="fc-nav">
       ${i>0?'<button class="btn btn-secondary" id="fcPrev">← Anterior</button>':''}
@@ -1011,14 +1118,16 @@ function drawFC(){
   const pv=$('#fcPrev'); if(pv) pv.addEventListener('click',()=>{ FCS.i--; FCS.revealed=false; drawFC(); });
   $('#fcClose').addEventListener('click',()=>{
     const x=st(FCS.t.id); if(!x.fcDone){ x.fcIdx=FCS.i; touch(x); save(); }
-    $('#overlay').classList.remove('show'); refresh(FCS.t); FCS=null;
+    $('#overlay').classList.remove('show'); $('#overlay').classList.remove('fs');
+    refresh(FCS.t); FCS=null;
   });
 }
 function finishCards(){
   const t=FCS.t;
   const x=st(t.id); x.fcDone=true; x.fcIdx=0;
-  P().last={tid:t.id,mode:'ai',ts:Date.now()};
+  setLast(t.id,'ai'); award(25);
   touch(x); save(); refresh(t);
+  confetti(); avatarPop('ecstatic','¡Tarjetas completadas! +25 XP');
   const hasPod=!!PODS[t.id]; const np=hasPod?nextPod(t):null;
   $('#sheet').innerHTML=`
     <div class="sheet-head"><h3 class="sheet-title display">${esc(t.name)}</h3></div>
@@ -1030,9 +1139,10 @@ function finishCards(){
       <a class="btn btn-primary" id="fcAI" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener" style="margin-top:10px">🎙 Sesión con tu tutor AI</a>
       <button class="btn btn-secondary" id="fcDone2" style="margin-top:10px">Cerrar</button>
     </div>`;
-  const fp=$('#fcPod'); if(fp) fp.addEventListener('click',()=>{ markPod(t); $('#overlay').classList.remove('show'); FCS=null; });
-  $('#fcAI').addEventListener('click',()=>{ logAI(t); $('#overlay').classList.remove('show'); FCS=null; });
-  $('#fcDone2').addEventListener('click',()=>{ $('#overlay').classList.remove('show'); FCS=null; });
+  const closeFs=()=>{ $('#overlay').classList.remove('show'); $('#overlay').classList.remove('fs'); FCS=null; };
+  const fp=$('#fcPod'); if(fp) fp.addEventListener('click',()=>{ markPod(t); closeFs(); });
+  $('#fcAI').addEventListener('click',()=>{ logAI(t); closeFs(); });
+  $('#fcDone2').addEventListener('click',closeFs);
 }
 
 /* ================= quiz ================= */
@@ -1069,14 +1179,15 @@ function answer(k){
   });
   const ex=$('#explain'); ex.hidden=false;
   ex.textContent=(right?'✓ Correcto. ':'✗ ')+q.why;
+  if(!right) avatarPop('duh','Ups…');
   setTimeout(()=>{ Q.i++; Q.i<Q.qs.length?drawQ():finishQuiz(); }, right?1100:2300);
 }
 function finishQuiz(){
   const {t,score,qs}=Q; const pass=score>=4;
   const s=st(t.id);
   if(s.best===null||score>s.best) s.best=score;
-  if(pass){ s.passed=true; s.status='solid'; }
-  else P().last={tid:t.id,mode:'ai',ts:Date.now()};
+  if(pass){ s.passed=true; s.status='solid'; award(40); confetti(); avatarPop('ecstatic','¡Sólido! +40 XP'); }
+  else { setLast(t.id,'ai'); award(10); avatarPop('embarrassed','Casi… +10 XP'); }
   touch(s); save(); refresh(t);
   $('#sheet').innerHTML=`
     <div class="sheet-head"><h3 class="sheet-title display">${esc(t.name)}</h3></div>
