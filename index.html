@@ -6,7 +6,7 @@
     --ground:#faf5f0; --card:#ffffff; --card-edge:#eadfd6;
     --ink:#26191f; --muted:#7d6b70; --faint:#a99a9e;
     --rosa:#d40f6f; --rosa-ink:#ffffff; --rosa-soft:#fbe3ef;
-    --cobalt:#2547b0; --cobalt-soft:#e4eafc;
+    --cobalt:#2547b0; --cobalt-ink:#ffffff; --cobalt-soft:#e4eafc;
     --gold:#a56708; --gold-soft:#faedd2;
     --green:#177a4f; --green-soft:#d9f2e4;
     --wrong:#b3261e; --wrong-soft:#fadcda;
@@ -17,7 +17,7 @@
       --ground:#201a1d; --card:#2b2327; --card-edge:#3c3237;
       --ink:#f2e9e4; --muted:#b3a49e; --faint:#8a7b7f;
       --rosa:#ff5ca8; --rosa-ink:#2b0517; --rosa-soft:#472033;
-      --cobalt:#93aaff; --cobalt-soft:#28304d;
+      --cobalt:#93aaff; --cobalt-ink:#101a3a; --cobalt-soft:#28304d;
       --gold:#eab250; --gold-soft:#42351d;
       --green:#5bcd93; --green-soft:#1e3d2d;
       --wrong:#ff7a70; --wrong-soft:#4a2523;
@@ -28,7 +28,7 @@
     --ground:#201a1d; --card:#2b2327; --card-edge:#3c3237;
     --ink:#f2e9e4; --muted:#b3a49e; --faint:#8a7b7f;
     --rosa:#ff5ca8; --rosa-ink:#2b0517; --rosa-soft:#472033;
-    --cobalt:#93aaff; --cobalt-soft:#28304d;
+    --cobalt:#93aaff; --cobalt-ink:#101a3a; --cobalt-soft:#28304d;
     --gold:#eab250; --gold-soft:#42351d;
     --green:#5bcd93; --green-soft:#1e3d2d;
     --wrong:#ff7a70; --wrong-soft:#4a2523;
@@ -41,7 +41,7 @@
     font-family:'Archivo',-apple-system,'Helvetica Neue',Arial,sans-serif;
     font-size:16px; line-height:1.45;
     -webkit-font-smoothing:antialiased;
-    padding-bottom:64px;
+    padding-bottom:110px;
   }
   .wrap{max-width:640px;margin:0 auto;padding:0 16px}
   .display{font-family:'Archivo Black','Archivo',-apple-system,sans-serif;font-weight:400}
@@ -49,8 +49,11 @@
   /* ---------- header ---------- */
   header{padding:28px 0 8px}
   .brandrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
-  .addsmall{flex:none;font:inherit;font-size:13px;font-weight:700;padding:8px 14px;border-radius:99px;border:1.5px dashed var(--card-edge);background:var(--card);color:var(--muted);cursor:pointer;white-space:nowrap}
-  .addsmall:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .fab{position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:40;
+    font:inherit;font-size:15px;font-weight:700;padding:14px 22px;border-radius:99px;border:none;
+    background:var(--cobalt);color:var(--cobalt-ink);cursor:pointer;white-space:nowrap;
+    box-shadow:0 4px 14px rgba(20,10,30,.28)}
+  .fab:focus-visible{outline:2px solid var(--rosa);outline-offset:2px}
   .wordmark{font-size:44px;letter-spacing:-.02em;line-height:1;margin:0}
   .wordmark .dot{color:var(--rosa)}
   .tagline{color:var(--muted);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:8px 0 0}
@@ -149,7 +152,7 @@
   .result .btn{margin-top:14px}
 
   /* ---------- toast / footer ---------- */
-  .toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:24px;background:var(--ink);color:var(--ground);padding:11px 18px;border-radius:99px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:60;max-width:90vw;text-align:center}
+  .toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:calc(86px + env(safe-area-inset-bottom));background:var(--ink);color:var(--ground);padding:11px 18px;border-radius:99px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:60;max-width:90vw;text-align:center}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--card-edge)}
   footer h3{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
@@ -162,10 +165,7 @@
 
 <div class="wrap">
   <header>
-    <div class="brandrow">
-      <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
-      <button class="addsmall" id="addItemBtn">+ Add Item</button>
-    </div>
+    <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
     <p class="tagline">Español mexicano · A2/B1 → B2</p>
     <div class="profiles" id="profiles" role="group" aria-label="Perfil"></div>
     <div class="hero-stats">
@@ -190,6 +190,7 @@
   </footer>
 </div>
 
+<button class="fab" id="addItemBtn">+ Add Item</button>
 <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Quiz">
   <div class="sheet" id="sheet"></div>
 </div>
