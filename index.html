@@ -656,12 +656,18 @@ function mergeDB(a,b){
       const ra=(pa.custom||{})[cid], rb=(pb.custom||{})[cid];
       custom[cid]=!ra?rb:!rb?ra:((rb.u||0)>(ra.u||0)?rb:ra);
     });
-    const last=(pa.last&&pb.last)?(((pb.last.ts||0)>=(pa.last.ts||0))?pb.last:pa.last):(pa.last||pb.last);
+    // profile-level fields honor the reset stamp so a sync merge can't resurrect wiped XP/streak
+    const va=(pa.xpTs||0)>=reset, vb=(pb.xpTs||0)>=reset;
+    const rd=reset?(d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'))(new Date(reset)):'';
+    const act=Object.fromEntries(Object.entries(Object.assign({},pa.act||{},pb.act||{})).filter(([d])=>d>=rd));
+    const lastCands=[pa.last,pb.last].filter(l=>l&&(l.ts||0)>=reset);
+    const last=lastCands.sort((x,y)=>(y.ts||0)-(x.ts||0))[0]||null;
     out.profiles[pid]={name:pb.name||pa.name,topics,custom,reset,
-      xp:Math.max(pa.xp||0,pb.xp||0),
-      act:Object.assign({},pa.act||{},pb.act||{}),
-      seen:Math.max(pa.seen||0,pb.seen||0),
-      last, lastTs:Math.max(pa.lastTs||0,pb.lastTs||0)};
+      xp:Math.max(va?(pa.xp||0):0, vb?(pb.xp||0):0),
+      xpTs:Math.max(va?(pa.xpTs||0):0, vb?(pb.xpTs||0):0),
+      act,
+      seen:Math.max((pa.seen||0)>=reset?(pa.seen||0):0,(pb.seen||0)>=reset?(pb.seen||0):0),
+      last, lastTs:Math.max((pa.lastTs||0)>=reset?(pa.lastTs||0):0,(pb.lastTs||0)>=reset?(pb.lastTs||0):0)};
   });
   return out;
 }
@@ -941,7 +947,7 @@ const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').r
 /* ---- gamification: XP, streaks, avatars ---- */
 const dstr=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function award(n){
-  const p=P(); p.xp=(p.xp||0)+n;
+  const p=P(); p.xp=(p.xp||0)+n; p.xpTs=Date.now();
   (p.act=p.act||{})[dstr(new Date())]=((p.act||{})[dstr(new Date())]||0)+n;
   p.seen=Date.now();
 }
@@ -1477,8 +1483,10 @@ function toast(msg){
 }
 $('#resetBtn').addEventListener('click',()=>{
   const p=P();
-  confirmSheet('This will erase all of '+p.name+"'s progress — sessions, statuses, and quiz scores. This cannot be undone.",()=>{
-    p.topics={}; p.reset=Date.now(); save(); render(); toast(p.name+"'s progress deleted");
+  confirmSheet('This will erase all of '+p.name+"'s progress — sessions, statuses, quiz scores, XP, and streak. This cannot be undone.",()=>{
+    p.topics={}; p.xp=0; p.xpTs=0; p.act={}; p.seen=0; p.last=null; p.lastTs=0;
+    p.reset=Date.now();
+    save(); render(); toast(p.name+"'s progress deleted");
   });
 });
 
