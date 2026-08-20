@@ -485,6 +485,8 @@ try{
   DB=v2?JSON.parse(v2):migrateFlat(JSON.parse(v1||'{}'));
 }catch(e){ DB={profiles:{}}; }
 if(!Object.keys(DB.profiles).length) DB.profiles.p1={name:'Ethan',topics:{},reset:0};
+if(!DB.profiles.p2 && !Object.values(DB.profiles).some(p=>p&&p.name&&p.name.trim().toLowerCase()==='kate'))
+  DB.profiles.p2={name:'Kate',topics:{},reset:0};
 
 let activeId=localStorage.getItem(PKEY);
 if(!activeId||!DB.profiles[activeId]) activeId=Object.keys(DB.profiles)[0];
