@@ -952,7 +952,7 @@ function avState(p){
   if(days>=1.5) return 'bored';
   return 'happy';
 }
-const avSrc=(p,state)=>'avatars/'+avWho(p)+'-'+(state||avState(p))+'.png?v=4';
+const avSrc=(p,state)=>'avatars/'+avWho(p)+'-'+(state||avState(p))+'.png?v=5';
 const celebState=()=>'ecstatic';
 function profSolid(p){ const tt=p.topics||{}; return ALL.filter(x=>(tt[x.id]||{}).status==='solid').length; }
 function avatarPop(state,msg){
