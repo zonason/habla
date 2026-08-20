@@ -1,0 +1,865 @@
+<meta charset="utf-8">
+<title>Habla</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Black&display=swap">
+<style>
+  :root{
+    --ground:#faf5f0; --card:#ffffff; --card-edge:#eadfd6;
+    --ink:#26191f; --muted:#7d6b70; --faint:#a99a9e;
+    --rosa:#d40f6f; --rosa-ink:#ffffff; --rosa-soft:#fbe3ef;
+    --cobalt:#2547b0; --cobalt-soft:#e4eafc;
+    --gold:#a56708; --gold-soft:#faedd2;
+    --green:#177a4f; --green-soft:#d9f2e4;
+    --wrong:#b3261e; --wrong-soft:#fadcda;
+    --track:#efe6de; --shadow:0 1px 2px rgba(60,30,45,.06),0 4px 14px rgba(60,30,45,.07);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#201a1d; --card:#2b2327; --card-edge:#3c3237;
+      --ink:#f2e9e4; --muted:#b3a49e; --faint:#8a7b7f;
+      --rosa:#ff5ca8; --rosa-ink:#2b0517; --rosa-soft:#472033;
+      --cobalt:#93aaff; --cobalt-soft:#28304d;
+      --gold:#eab250; --gold-soft:#42351d;
+      --green:#5bcd93; --green-soft:#1e3d2d;
+      --wrong:#ff7a70; --wrong-soft:#4a2523;
+      --track:#3a3034; --shadow:0 1px 2px rgba(0,0,0,.25),0 4px 14px rgba(0,0,0,.25);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#201a1d; --card:#2b2327; --card-edge:#3c3237;
+    --ink:#f2e9e4; --muted:#b3a49e; --faint:#8a7b7f;
+    --rosa:#ff5ca8; --rosa-ink:#2b0517; --rosa-soft:#472033;
+    --cobalt:#93aaff; --cobalt-soft:#28304d;
+    --gold:#eab250; --gold-soft:#42351d;
+    --green:#5bcd93; --green-soft:#1e3d2d;
+    --wrong:#ff7a70; --wrong-soft:#4a2523;
+    --track:#3a3034; --shadow:0 1px 2px rgba(0,0,0,.25),0 4px 14px rgba(0,0,0,.25);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:'Archivo',-apple-system,'Helvetica Neue',Arial,sans-serif;
+    font-size:16px; line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:64px;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px}
+  .display{font-family:'Archivo Black','Archivo',-apple-system,sans-serif;font-weight:400}
+
+  /* ---------- header ---------- */
+  header{padding:28px 0 8px}
+  .wordmark{font-size:44px;letter-spacing:-.02em;line-height:1;margin:0}
+  .wordmark .dot{color:var(--rosa)}
+  .tagline{color:var(--muted);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:8px 0 0}
+  .profiles{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .pchip{font:inherit;font-size:13px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid var(--card-edge);background:var(--card);color:var(--muted);cursor:pointer}
+  .pchip.active{background:var(--rosa);border-color:var(--rosa);color:var(--rosa-ink)}
+  .pchip.add{border-style:dashed;background:none}
+  .pchip:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .hero-stats{display:flex;gap:10px;margin-top:18px}
+  .stat{flex:1;background:var(--card);border:1px solid var(--card-edge);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow)}
+  .stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .stat span{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-top:2px}
+  .totalbar{margin-top:14px;height:8px;border-radius:99px;background:var(--track);overflow:hidden;display:flex}
+  .totalbar .seg-solid{background:var(--green)}
+  .totalbar .seg-prog{background:var(--gold)}
+  .howto{display:flex;gap:10px;align-items:flex-start;background:var(--cobalt-soft);border-radius:10px;padding:12px 14px;margin-top:16px;font-size:13.5px;color:var(--ink)}
+  .howto .n{flex:none;font-family:'Archivo Black';color:var(--cobalt);font-size:13px;padding-top:1px}
+
+  /* ---------- phases ---------- */
+  .phase{margin-top:30px}
+  .phase-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .phase-eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--rosa);margin:0}
+  .phase-title{font-size:20px;letter-spacing:-.01em;margin:2px 0 0}
+  .phase-count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+
+  /* ---------- topic cards ---------- */
+  .topic{background:var(--card);border:1px solid var(--card-edge);border-radius:12px;box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden}
+  .topic-row{display:flex;align-items:center;gap:12px;width:100%;padding:14px;background:none;border:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+  .topic-row:focus-visible{outline:2px solid var(--cobalt);outline-offset:-2px;border-radius:12px}
+  .tnum{flex:none;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-family:'Archivo Black';font-size:13px;background:var(--track);color:var(--muted)}
+  .topic.st-progress .tnum{background:var(--gold-soft);color:var(--gold)}
+  .topic.st-solid .tnum{background:var(--green-soft);color:var(--green)}
+  .tmain{flex:1;min-width:0}
+  .tname{font-weight:700;font-size:15.5px;letter-spacing:-.005em}
+  .twhy{font-size:12.5px;color:var(--muted);margin-top:1px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .tside{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+  .chip{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:99px;padding:3px 9px;white-space:nowrap}
+  .chip.none{background:var(--track);color:var(--muted)}
+  .chip.progress{background:var(--gold-soft);color:var(--gold)}
+  .chip.solid{background:var(--green-soft);color:var(--green)}
+  .tmeta{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+
+  .tbody{display:none;padding:0 14px 16px;border-top:1px solid var(--card-edge)}
+  .topic.open .tbody{display:block}
+  .example{margin:14px 0 0;padding:10px 14px;border-left:3px solid var(--rosa);background:var(--rosa-soft);border-radius:0 8px 8px 0;font-size:15px;font-style:italic}
+  .convo{font-size:13.5px;color:var(--muted);margin:10px 0 0}
+  .convo b{color:var(--ink)}
+  .quizline{font-size:12.5px;color:var(--muted);margin:10px 0 0;font-variant-numeric:tabular-nums}
+  .quizline .pass{color:var(--green);font-weight:700}
+  .actions{display:flex;gap:8px;margin-top:14px}
+  .btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:10px;padding:13px 10px;font:inherit;font-weight:700;font-size:14px;border:none;cursor:pointer;text-decoration:none;text-align:center}
+  .btn:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .btn-primary{background:var(--rosa);color:var(--rosa-ink)}
+  .btn-secondary{background:var(--track);color:var(--ink)}
+  .btn-quiz{background:var(--cobalt-soft);color:var(--cobalt)}
+  .sessions-note{font-size:11.5px;color:var(--faint);margin-top:10px;text-align:center}
+  .statusset{display:flex;gap:6px;margin-top:12px}
+  .statusset button{flex:1;font:inherit;font-size:11.5px;font-weight:700;letter-spacing:.03em;padding:8px 4px;border-radius:8px;border:1px solid var(--card-edge);background:none;color:var(--muted);cursor:pointer}
+  .statusset button.on-none{background:var(--track);color:var(--ink);border-color:transparent}
+  .statusset button.on-progress{background:var(--gold-soft);color:var(--gold);border-color:transparent}
+  .statusset button.on-solid{background:var(--green-soft);color:var(--green);border-color:transparent}
+  .addtopic{width:100%;padding:13px;border:1.5px dashed var(--card-edge);background:none;border-radius:12px;color:var(--muted);font:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:2px}
+  .addtopic:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .custom-hint{font-size:12.5px;color:var(--faint);margin:6px 0 10px}
+  .delT{display:block;margin:12px auto 0;background:none;border:none;color:var(--wrong);font:inherit;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline}
+
+  /* ---------- quiz modal ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(20,10,15,.55);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .overlay.show{display:flex}
+  .sheet{background:var(--card);color:var(--ink);width:100%;max-width:640px;border-radius:18px 18px 0 0;padding:20px 18px 30px;max-height:86vh;overflow-y:auto}
+  .sheet-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .sheet-title{font-size:18px;margin:0}
+  .sheet-sub{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .qtext{font-size:19px;font-weight:600;margin:18px 0 14px;letter-spacing:-.005em}
+  .opt{display:block;width:100%;text-align:left;font:inherit;font-size:16px;padding:13px 14px;border-radius:10px;border:1.5px solid var(--card-edge);background:none;color:inherit;cursor:pointer;margin-bottom:8px}
+  .opt:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .opt.correct{border-color:var(--green);background:var(--green-soft);font-weight:700}
+  .opt.wrong{border-color:var(--wrong);background:var(--wrong-soft)}
+  .opt:disabled{cursor:default;opacity:1}
+  .opt.dim:disabled{opacity:.45}
+  .explain{font-size:13.5px;color:var(--muted);background:var(--track);border-radius:8px;padding:10px 12px;margin-top:4px}
+  .qnav{margin-top:14px;display:flex;justify-content:flex-end}
+  .result{text-align:center;padding:18px 0 6px}
+  .result .big{font-size:52px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .result .verdict{font-size:15px;font-weight:700;margin-top:6px}
+  .result .verdict.pass{color:var(--green)}
+  .result .verdict.fail{color:var(--gold)}
+  .result p{color:var(--muted);font-size:13.5px}
+  .result .btn{margin-top:14px}
+
+  /* ---------- toast / footer ---------- */
+  .toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:24px;background:var(--ink);color:var(--ground);padding:11px 18px;border-radius:99px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:60;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--card-edge)}
+  footer h3{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+  footer p{font-size:13.5px;color:var(--muted);margin:6px 0}
+  footer b{color:var(--ink)}
+  .reset{margin-top:16px;background:none;border:1px solid var(--card-edge);color:var(--muted);font:inherit;font-size:12.5px;font-weight:600;border-radius:8px;padding:8px 14px;cursor:pointer}
+  @media (prefers-reduced-motion: reduce){ .toast{transition:none} }
+  @media (min-width:520px){ .overlay{align-items:center} .sheet{border-radius:18px} }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
+    <p class="tagline">Español mexicano · A2/B1 → B2</p>
+    <div class="profiles" id="profiles" role="group" aria-label="Perfil"></div>
+    <div class="hero-stats">
+      <div class="stat"><b id="stat-solid">0%</b><span>Sólido</span></div>
+      <div class="stat"><b id="stat-topics">0/31</b><span>Temas</span></div>
+      <div class="stat"><b id="stat-sessions">0</b><span>Sesiones</span></div>
+      <div class="stat"><b id="stat-left">—</b><span>Horas rest.</span></div>
+    </div>
+    <div class="totalbar" id="totalbar" role="img" aria-label="Progreso total"></div>
+    <div class="howto">
+      <span class="n">1→2→3</span>
+      <span><b>Toca “Sesión de voz”</b> — el prompt se copia y ChatGPT se abre con tu tutor listo. Luego toca el ícono de voz&nbsp;🎙 en ChatGPT y empieza a hablar. Al terminar, regresa y haz el quiz para marcarlo sólido.</span>
+    </div>
+  </header>
+
+  <main id="phases"></main>
+
+  <footer>
+    <h3>Ponlo en tu pantalla de inicio</h3>
+    <p>En Safari (iPhone): botón <b>Compartir</b> → <b>Agregar a pantalla de inicio</b>. Queda como app con un toque.</p>
+    <p>Cada perfil guarda su propio progreso: sesiones, estado por tema y quizzes. Este teléfono recuerda cuál perfil es el tuyo.</p>
+    <p id="syncline">💾 Progreso guardado solo en este dispositivo.</p>
+    <button class="reset" id="resetBtn">Borrar todo el progreso</button>
+    <button class="reset" id="syncBtn">Configurar sincronización</button>
+  </footer>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Quiz">
+  <div class="sheet" id="sheet"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= data ================= */
+const TEMPLATE = (label) => `You are my Spanish tutor. I'm at an A2/B1 level. Today's focus: [${label}].
+
+We are doing this session BY VOICE, so keep every turn short and conversational — no long lists or lectures.
+
+Run the session like this:
+
+1. Quick check (2 min): Ask me 2-3 warm-up questions in Spanish to gauge where I am with this topic. Don't explain anything yet.
+
+2. Targeted explanation: Based on my mistakes, give me a short, practical explanation of what I got wrong. No textbook dumps. Rules of thumb over grammar theory.
+
+3. Guided conversation (bulk of session): Have a natural conversation with me designed to force this structure repeatedly. Use my real life for material: I run a software company, I'm married with young kids, I moved from Austin to Mexico. Ask follow-up questions that keep pulling the target structure out of me.
+
+4. Correction style: Correct me inline and briefly. Restate my sentence the right way, then keep the conversation moving. Don't lecture mid-conversation. If I make the same mistake 3+ times, stop and drill it.
+
+5. Wrap-up: End with my top 3 mistakes from the session and one sentence I should practice saying until it's automatic.
+
+Speak Spanish as much as possible. Only switch to English for explanations if I'm clearly lost. Keep your Spanish at my level or slightly above it. Use Mexican Spanish.`;
+
+// q: [question, [4 options], correctIndex, explanation]
+const PHASES = [
+{ name:"Audit the Foundation", eyebrow:"Fase 1", topics:[
+ {n:1, name:"Presente", why:"Bedrock. Should be automatic", ex:"Trabajo desde casa los lunes",
+  conv:"Describe your typical workday, present tense only — your routine and your family's during the week, and weekends. Use yo, él, ella, nosotros, ellos.",
+  mins:90, quiz:[
+   ["Yo ___ desde casa los lunes.",["trabajo","trabaja","trabajas","trabajan"],0,"Yo → -o: trabajo."],
+   ["Mi esposa ___ con nosotros a mediodía.",["come","como","comes","comen"],0,"Ella → come."],
+   ["Nosotros ___ en México.",["vivimos","viven","vivemos","vivamos"],0,"-ir, nosotros → vivimos."],
+   ["Los niños ___ español en la escuela.",["aprenden","aprende","aprendes","aprendan"],0,"Ellos → aprenden."],
+   ["¿Tú ___ inglés en el trabajo?",["hablas","habla","hablo","hablan"],0,"Tú → -as: hablas."]]},
+ {n:2, name:"Verbos irregulares (presente)", why:"Stem-changers (e-ie, o-ue) and the big irregulars: ser, ir, tener, poder, hacer", ex:"Puedo, quieres, tiene, hago",
+  conv:"Drill the top 20 irregular verbs in present-tense conversation: ser, estar, ir, tener, hacer, decir, venir, poder, poner, salir, querer, saber, ver, dar, pensar, entender, dormir, pedir, jugar y sentir.",
+  mins:300, quiz:[
+   ["Hoy no ___ ir a la junta.",["puedo","podo","puede","puedes"],0,"Poder: o→ue. Yo puedo."],
+   ["Ella ___ un café, por favor.",["quiere","quere","quiera","queres"],0,"Querer: e→ie. Quiere."],
+   ["Yo ___ ejercicio en las mañanas.",["hago","haco","hazo","hace"],0,"Hacer: yo hago."],
+   ["Nosotros ___ ocho horas.",["dormimos","duermimos","dormemos","duermen"],0,"Nosotros no cambia la raíz: dormimos."],
+   ["Ellos ___ dos hijos.",["tienen","tenen","tienenen","tiene"],0,"Tener: tienen."]]},
+ {n:3, name:"Ser vs. Estar", why:"A2 staple but errors persist for years", ex:"Soy alto / Estoy cansado",
+  conv:"Describe people you know: traits vs. current states.",
+  mins:240, quiz:[
+   ["Mi oficina ___ en el centro.",["está","es","son","estás"],0,"Ubicación → estar."],
+   ["La junta ___ a las diez.",["es","está","están","era"],0,"Hora de un evento → ser."],
+   ["Prueba los tacos — hoy ___ buenísimos.",["están","son","es","está"],0,"Cómo saben hoy (estado) → estar."],
+   ["Mi socio ___ de Austin.",["es","está","estás","están"],0,"Origen → ser."],
+   ["Los niños ___ cansados después de la escuela.",["están","son","es","está"],0,"Estado temporal → estar."]]},
+ {n:4, name:"Género y concordancia", why:"Cheap wins, fixes constant small errors", ex:"La mano blanca, el problema serio",
+  conv:"Describe objects around you with adjectives.",
+  mins:120, quiz:[
+   ["¿Cuál es correcta?",["el problema serio","la problema seria","el problema seria","la problema serio"],0,"Problema es masculino aunque termina en -a."],
+   ["Me duele ___ mano ___.",["la … derecha","el … derecho","la … derecho","el … derecha"],0,"Mano es femenina: la mano derecha."],
+   ["Fue un ___ muy largo.",["día","dío","día larga","días"],0,"El día — masculino aunque termina en -a."],
+   ["El agua está ___.",["fría","frío","fríos","frías"],0,"Agua es femenina; “el” solo evita “la-a”: el agua fría."],
+   ["Compramos unas motos ___.",["nuevas","nuevos","nueva","nuevo"],0,"La moto → las motos nuevas."]]},
+ {n:5, name:"Preguntas", why:"You need these to drive conversations", ex:"¿Qué? ¿Cuál? ¿Por qué?",
+  conv:"Interview me about my life.",
+  mins:90, quiz:[
+   ["¿___ es tu correo electrónico?",["Cuál","Qué","Quién","Cómo"],0,"Elegir entre opciones → cuál (no “qué”)."],
+   ["¿___ personas van a la junta?",["Cuántas","Cuántos","Cuánta","Qué"],0,"Personas es femenino plural → cuántas."],
+   ["¿___ no viniste ayer?",["Por qué","Porque","Para qué","Cómo"],0,"Pregunta → por qué (separado, con tilde)."],
+   ["¿___ es tu escritor favorito?",["Quién","Cuál","Qué","Cuáles"],0,"Persona → quién."],
+   ["¿___ significa “chamba”?",["Qué","Cuál","Cómo","Quién"],0,"Definición → qué significa."]]},
+ {n:6, name:"Verbos reflexivos", why:"Core daily-life verbs, pronoun placement", ex:"Me levanto a las seis",
+  conv:"Walk me through your morning routine.",
+  mins:240, quiz:[
+   ["Yo ___ a las seis de la mañana.",["me levanto","levanto","me levanta","se levanto"],0,"Reflexivo: yo me levanto."],
+   ["Mis hijos ___ los dientes antes de dormir.",["se lavan","se lava","lavan","me lavan"],0,"Ellos → se lavan."],
+   ["Voy a ___ temprano mañana.",["acostarme","me acostar","acostarse","acostar"],0,"Con infinitivo, el pronombre va pegado: acostarme."],
+   ["Nosotros ___ tarde los domingos.",["nos despertamos","se despertamos","despertamos","nos despierta"],0,"Nosotros → nos despertamos."],
+   ["Ella está ___ para la fiesta.",["arreglándose","arreglarse","se arreglando","arreglándome"],0,"Gerundio + pronombre pegado: arreglándose."]]},
+ {n:7, name:"Gustar y similares", why:"Backwards verbs, high frequency", ex:"Me encantan los tacos",
+  conv:"Talk about your likes and dislikes, and your kids'.",
+  mins:210, quiz:[
+   ["Me ___ los tacos al pastor.",["encantan","encanta","encanto","encantas"],0,"Los tacos (plural) → encantan."],
+   ["A mi esposa ___ gusta el café.",["le","la","se","me"],0,"A ella → le gusta."],
+   ["___ interesa mucho la inteligencia artificial.",["Me","Yo","Mi","A mí me la"],0,"Me interesa — el que siente va como pronombre."],
+   ["A mis hijos les ___ jugar en el parque.",["gusta","gustan","gustar","gusto"],0,"Con infinitivo → singular: les gusta jugar."],
+   ["¿Te ___ las películas mexicanas?",["gustan","gusta","gustas","gusto"],0,"Las películas (plural) → gustan."]]},
+ {n:8, name:"Preposiciones básicas", why:"A, en, de, con — the core set and common verb pairings (ir a, salir de)", ex:"Voy a la tienda en coche",
+  conv:"Describe locations and movements around your city.",
+  mins:300, quiz:[
+   ["Voy ___ la oficina en coche.",["a","en","de","por"],0,"Ir a + destino."],
+   ["Salimos ___ casa a las ocho.",["de","a","en","desde a"],0,"Salir de + lugar."],
+   ["Trabajo ___ una empresa de software.",["en","a","de","por"],0,"Trabajar en + lugar/empresa."],
+   ["Voy al cine ___ mis hijos.",["con","en","a","de"],0,"Compañía → con."],
+   ["Empiezo ___ trabajar a las nueve.",["a","de","en","por"],0,"Empezar a + infinitivo."]]},
+]},
+{ name:"The Past Tense Wall", eyebrow:"Fase 2", topics:[
+ {n:9, name:"Pretérito indefinido", why:"Completed past actions", ex:"Ayer hablé con mi hermano",
+  conv:"Tell me what you did last weekend, step by step.",
+  mins:720, quiz:[
+   ["Ayer ___ con mi hermano por teléfono.",["hablé","hablo","hablaba","hablé a"],0,"Acción terminada ayer → hablé."],
+   ["Ella ___ tacos anoche.",["comió","comía","come","comiste"],0,"Ella, -er → comió."],
+   ["¿A qué hora ___ tú a casa?",["llegaste","llegastes","llegó","llegabas"],0,"Tú → llegaste (sin -s final extra)."],
+   ["Ellos ___ su casa el año pasado.",["vendieron","vendaron","vendían","venden"],0,"Ellos, -er → vendieron."],
+   ["El lunes ___ (yo) un correo importante.",["escribí","escribió","escribía","escribo"],0,"Yo, -ir → escribí."]]},
+ {n:10, name:"Verbos irregulares (indefinido)", why:"The worst irregulars live here: fui, tuve, hice, dije, estuve, pude", ex:"Fui al mercado y tuve que esperar",
+  conv:"Retell yesterday using only irregular verbs: ir, tener, hacer, decir, estar.",
+  mins:600, quiz:[
+   ["Ayer ___ al mercado.",["fui","iba","fue","fuí a"],0,"Ir, yo → fui."],
+   ["Ella no ___ venir a la cena.",["pudo","podió","podía siempre","puede"],0,"Poder → pudo."],
+   ["¿Qué ___ el sábado?",["hiciste","haciste","hacistes","hacías tú"],0,"Hacer, tú → hiciste."],
+   ["Ellos ___ en Oaxaca la semana pasada.",["estuvieron","estaron","estuvieron en estar","fueron estado"],0,"Estar → estuvieron."],
+   ["Me ___ la verdad al final.",["dijeron","dicieron","dijieron","decieron"],0,"Decir → dijeron (sin i extra)."]]},
+ {n:11, name:"Pretérito imperfecto", why:"Easy to conjugate (only 3 irregulars: ser, ir, ver), tricky to deploy", ex:"Cuando era niño, vivíamos en Texas",
+  conv:"Describe your childhood: where you lived, what you did.",
+  mins:420, quiz:[
+   ["Cuando era niño, ___ en Texas.",["vivía","viví","vivo","vivió"],0,"Descripción del pasado → imperfecto: vivía."],
+   ["Mis abuelos ___ un rancho.",["tenían","tuvieron un rato","tienen","tenió"],0,"Situación continua → tenían."],
+   ["Antes yo ___ al gimnasio todos los días.",["iba","fui","voy","iría"],0,"Hábito pasado → iba."],
+   ["De niña, ella ___ muy tímida.",["era","fue de repente","es","estaba ser"],0,"Rasgo en el pasado → era."],
+   ["Nosotros siempre ___ películas los viernes.",["veíamos","vimos una vez","vemos","veriamos"],0,"“Siempre” → hábito → veíamos."]]},
+ {n:12, name:"Indefinido vs. Imperfecto", why:"THE hurdle for English speakers", ex:"Leía un libro cuando sonó el teléfono",
+  conv:"Tell a story where something interrupted something else.",
+  mins:1500, quiz:[
+   ["___ un libro cuando ___ el teléfono.",["Leía … sonó","Leí … sonaba","Leía … sonaba","Leí … sonó"],0,"Fondo → imperfecto; interrupción → indefinido."],
+   ["De repente ___ a llover.",["empezó","empezaba","empieza","empezara"],0,"“De repente” marca un evento puntual → empezó."],
+   ["Mientras trabajaba, alguien ___ la puerta.",["tocó","tocaba","toca","tocara"],0,"Evento que corta la escena → tocó."],
+   ["Antes ___ en una oficina; ahora trabajo desde casa.",["trabajaba","trabajé una vez","trabajo","trabajaría"],0,"Situación habitual del pasado → trabajaba."],
+   ["Todos bailaban cuando se ___ la luz.",["fue","iba","va","fuera"],0,"El apagón es puntual → se fue la luz."]]},
+ {n:13, name:"Pretérito perfecto", why:"Recent past + irregular participles (hecho, dicho, visto, puesto)", ex:"Hoy he comido tacos / He hecho mucho",
+  conv:"What have you done so far today?",
+  mins:240, quiz:[
+   ["Hoy ___ demasiado.",["he comido","he comí","comido","hube comer"],0,"Haber + participio: he comido."],
+   ["¿___ esa película?",["Has visto","Has veído","Ha visto tú","Hubiste ver"],0,"Ver → visto (irregular)."],
+   ["Todavía no ___ la tarea.",["hemos hecho","hemos hacido","hacemos hecho","hemos hace"],0,"Hacer → hecho."],
+   ["Ya he ___ la mesa.",["puesto","ponido","puesta","poner"],0,"Poner → puesto."],
+   ["Ella ha ___ que sí.",["dicho","decido","dicido","dice"],0,"Decir → dicho."]]},
+ {n:14, name:"Expresiones de tiempo", why:"Hace, desde, llevar — pairs with past tenses", ex:"Llevo dos años viviendo en México",
+  conv:"Talk about how long you've been doing things.",
+  mins:150, quiz:[
+   ["___ dos años que vivo en México.",["Hace","Desde","Llevo","Por"],0,"Hace + tiempo + que + presente."],
+   ["Llevo dos años ___ en México.",["viviendo","vivir","vivido","que vivo"],0,"Llevar + tiempo + gerundio."],
+   ["Trabajo en esta empresa ___ 2024.",["desde","hace","por","durante"],0,"Punto de inicio → desde."],
+   ["Estudié español ___ tres horas sin parar.",["durante","desde","hace","en que"],0,"Duración de una acción terminada → durante."],
+   ["La junta terminó ___ una hora.",["hace","desde","por","llevaba"],0,"Hace + tiempo con pasado = “ago”."]]},
+]},
+{ name:"Fluidity Boosters", eyebrow:"Fase 3", topics:[
+ {n:15, name:"Perífrasis verbales", why:"Express future/obligation without new tenses", ex:"Voy a llamarte / Acabo de comer",
+  conv:"Plans (ir a), obligations (tener que), recent events (acabar de).",
+  mins:240, quiz:[
+   ["Mañana ___ llamarte.",["voy a","voy","iré a que","acabo de"],0,"Ir a + infinitivo = futuro cercano."],
+   ["___ de comer; no tengo hambre.",["Acabo","Voy","Tengo","Termino a"],0,"Acabar de + infinitivo = pasado inmediato."],
+   ["___ que terminar el reporte hoy.",["Tengo","Voy","Debo de a","Acabo"],0,"Tener que + infinitivo = obligación."],
+   ["Los niños ___ aprender a nadar este verano.",["van a","van","tienen a","acaban a"],0,"Van a + infinitivo."],
+   ["¿___ que trabajar el sábado?",["Tienes","Vas","Debes a","Acabas"],0,"Tener que → ¿Tienes que trabajar?"]]},
+ {n:16, name:"Objeto directo e indirecto", why:"Stop repeating nouns, sound fluid", ex:"Se lo di ayer",
+  conv:"Answer questions replacing nouns with pronouns.",
+  mins:720, quiz:[
+   ["¿El reporte? ___ mandé ayer (a ti).",["Te lo","Te la","Lo te","Se lo"],0,"OI antes de OD: te lo mandé."],
+   ["¿Las llaves? ___ di a mi esposa.",["Se las","Le las","Se les","La se"],0,"Le + las → se las."],
+   ["¿Me prestas tu pluma? — Sí, ___ presto.",["te la","te lo","la te","se la"],0,"Pluma es femenina: te la presto."],
+   ["Voy a comprar___ un regalo a mi hijo.",["le","lo","se","les"],0,"A mi hijo → le: comprarle."],
+   ["¿Viste a María? — Sí, ___ vi en la oficina.",["la","le","lo","se"],0,"Objeto directo femenino → la vi."]]},
+ {n:17, name:"Por vs. Para", why:"Constant decision point", ex:"Lo hice por ti / Es para ti",
+  conv:"Explain reasons and purposes behind your decisions.",
+  mins:300, quiz:[
+   ["Lo hice ___ ti — porque te quiero.",["por","para","de","con"],0,"Causa/motivo → por."],
+   ["Este café es ___ ti.",["para","por","a","de"],0,"Destinatario → para."],
+   ["Caminamos ___ el parque una hora.",["por","para","en el interior a","hasta para"],0,"Movimiento a través de → por."],
+   ["Necesito el reporte ___ el viernes.",["para","por","hasta por","en"],0,"Fecha límite → para."],
+   ["Gracias ___ tu ayuda.",["por","para","de","a"],0,"Gracias por — causa."]]},
+ {n:18, name:"Preposiciones con verbos", why:"Verb+preposition pairings that don't map to English: soñar con, depender de, pensar en", ex:"Sueño con vivir en la playa",
+  conv:"Answer questions using soñar con, pensar en, depender de.",
+  mins:630, quiz:[
+   ["Sueño ___ vivir en la playa.",["con","de","en","a"],0,"Soñar con (no “soñar de”)."],
+   ["Eso depende ___ ti.",["de","en","a","con"],0,"Depender de."],
+   ["Pienso ___ mi familia todos los días.",["en","de","a","con"],0,"Pensar en alguien."],
+   ["Me enamoré ___ México.",["de","con","en","a"],0,"Enamorarse de."],
+   ["Confío ___ mi equipo.",["en","de","a","con"],0,"Confiar en."]]},
+ {n:19, name:"Gerundio y progresivo", why:"Easy, quick win + irregular gerunds (leyendo, durmiendo)", ex:"Estoy aprendiendo español",
+  conv:"Describe what everyone in your house is doing right now.",
+  mins:90, quiz:[
+   ["Estoy ___ español.",["aprendiendo","aprendendo","aprender","aprendido"],0,"-er → -iendo: aprendiendo."],
+   ["Los niños están ___.",["durmiendo","dormiendo","durmendo","dormido"],0,"Dormir → durmiendo (o→u)."],
+   ["Ella está ___ un libro.",["leyendo","leiendo","leendo","leído"],0,"Leer → leyendo (i→y)."],
+   ["Sigo ___ en el mismo proyecto.",["trabajando","trabajar","trabajado","a trabajar"],0,"Seguir + gerundio."],
+   ["¿Qué estás ___?",["haciendo","haciendo de","hacer","hecho"],0,"Hacer → haciendo."]]},
+ {n:20, name:"Comparativos y superlativos", why:"Easy, immediately useful", ex:"México es más grande que Guatemala",
+  conv:"Compare two cities you've lived in.",
+  mins:90, quiz:[
+   ["México es ___ grande ___ Guatemala.",["más … que","más … de","tan … que","muy … que"],0,"Más + adjetivo + que."],
+   ["Mi café es tan rico ___ el tuyo.",["como","que","de","cual"],0,"Tan … como."],
+   ["Este restaurante es ___ que el otro.",["mejor","más bueno","más mejor","bien"],0,"Bueno → mejor (irregular)."],
+   ["Es el ___ tráfico de la ciudad.",["peor","más malo","más peor","malísimo de"],0,"Malo → peor."],
+   ["Tengo ___ de cien correos sin leer.",["más","más que","tantos","mayor"],0,"Con números: más de cien."]]},
+ {n:21, name:"Conectores", why:"Makes you sound B1+ instantly", ex:"Aunque llueva, iremos",
+  conv:"Argue a position using at least five connectors.",
+  mins:240, quiz:[
+   ["___ llueva, iremos al parque.",["Aunque","Porque","Sin embargo","Por eso"],0,"Concesión → aunque."],
+   ["No fui a la junta ___ estaba enfermo.",["porque","aunque","sin embargo","por eso que"],0,"Causa → porque."],
+   ["Me gusta la ciudad; ___, extraño Austin.",["sin embargo","porque","aunque de","por lo que sí"],0,"Contraste → sin embargo."],
+   ["Primero desayuno; ___ empiezo a trabajar.",["luego","porque","sino","aunque"],0,"Secuencia → luego / después."],
+   ["Estaba cansado, ___ me dormí temprano.",["por eso","sin embargo","aunque","sino que"],0,"Consecuencia → por eso."]]},
+]},
+{ name:"Future, Conditional, Commands", eyebrow:"Fase 4", topics:[
+ {n:22, name:"Futuro simple", why:"Easy, and its 12 irregular stems (tendré, haré, podré) are shared with condicional", ex:"Mañana iré a la oficina",
+  conv:"Predict your business in five years.",
+  mins:120, quiz:[
+   ["Mañana ___ a la oficina.",["iré","voy ir","iraré","iría siempre"],0,"Ir → iré."],
+   ["El próximo año ___ más clientes.",["tendremos","teneremos","tendemos","habremos tener"],0,"Tener → tendr-: tendremos."],
+   ["¿___ venir a la fiesta?",["Podrás","Poderás","Podrás a","Puedrás"],0,"Poder → podr-: podrás."],
+   ["Ella ___ el viaje en diciembre.",["hará","hacerá","haría ya","hazará"],0,"Hacer → har-: hará."],
+   ["Te ___ la verdad mañana.",["diré","deciré","diga","diría hoy"],0,"Decir → dir-: diré."]]},
+ {n:23, name:"Condicional", why:"Same irregular stems as futuro — learn once, use twice", ex:"Me gustaría vivir en la playa",
+  conv:"If money were no object, what would life look like?",
+  mins:240, quiz:[
+   ["Me ___ vivir en la playa.",["gustaría","gustaré","gusta","gustara"],0,"Deseo suave → condicional: gustaría."],
+   ["Con más tiempo, ___ más.",["viajaría","viajaré","viajara","viajo"],0,"Hipótesis → viajaría."],
+   ["¿Qué ___ con un millón de dólares?",["harías","hacerías","harás seguro","hicieras"],0,"Hacer → har-: harías."],
+   ["Ellos ___ ayudarnos con el proyecto.",["podrían","poderían","pudieran haber","podrán ayer"],0,"Poder → podr-: podrían."],
+   ["Yo en tu lugar, no ___ nada.",["diría","deciría","diré","dijera"],0,"Decir → dir-: diría."]]},
+ {n:24, name:"Imperativo", why:"Commands + irregular tú forms (haz, pon, ven, di, sal)", ex:"¡Hazlo! / ¡No lo hagas!",
+  conv:"Give me directions to your favorite restaurant.",
+  mins:300, quiz:[
+   ["¡___ la tarea ahora!",["Haz","Hace","Hagas","Hacer"],0,"Hacer, tú → haz."],
+   ["___ la mesa, por favor.",["Pon","Pone","Pongas","Poner"],0,"Poner, tú → pon."],
+   ["¡No lo ___!",["hagas","haz","haces","hace"],0,"Negativo usa subjuntivo: no lo hagas."],
+   ["___ a la oficina mañana temprano.",["Ven","Viene","Vengas","Venir"],0,"Venir, tú → ven."],
+   ["___ la verdad.",["Dime","Díceme","Di me a","Digas"],0,"Decir, tú → di (+me): dime."]]},
+ {n:25, name:"Pluscuamperfecto", why:"Past-before-past, quick add", ex:"Ya había salido cuando llegaste",
+  conv:"Tell me about arriving somewhere too late.",
+  mins:90, quiz:[
+   ["Ya ___ cuando llegaste.",["había salido","he salido","hube saliendo","salía ya"],0,"Pasado antes de otro pasado → había salido."],
+   ["Nunca ___ algo así.",["habíamos visto","hemos visto ayer","habíamos veído","vimos habido"],0,"Ver → visto: habíamos visto."],
+   ["Ella ya ___ cuando empezó la junta.",["había terminado","ha terminado","terminaba ya","hubo terminando"],0,"Había terminado — antes de la junta."],
+   ["Cuando llegué al cine, la película ya ___.",["había empezado","empezó después","ha empezado","empezaba"],0,"Ya había empezado antes de llegar."],
+   ["No comí porque ya ___ en casa.",["había comido","he comido","comí antes de haber","comiera"],0,"Había comido — anterior al momento pasado."]]},
+]},
+{ name:"The Subjunctive", eyebrow:"Fase 5", topics:[
+ {n:26, name:"Presente de subjuntivo", why:"Concept + irregulars (sea, vaya, haya, sepa, dé)", ex:"Quiero que vengas a la fiesta",
+  conv:"Give advice to a friend using 'recomiendo que...'.",
+  mins:900, quiz:[
+   ["Quiero que ___ a la fiesta.",["vengas","vienes","venir","vendrás"],0,"Querer que + subjuntivo: vengas."],
+   ["Espero que ___ tiempo mañana.",["haya","hay","habrá","hubo"],0,"Haber → haya."],
+   ["Es importante que los niños ___ bien.",["duerman","duermen","dormían","dormirán"],0,"Es importante que + subjuntivo: duerman."],
+   ["No creo que ___ buena idea.",["sea","es","será","era"],0,"No creer que + subjuntivo: sea."],
+   ["Recomiendo que ___ temprano.",["vayan","van","irán","iban"],0,"Ir → vayan."]]},
+ {n:27, name:"Subjuntivo triggers", why:"Memorize the trigger phrases", ex:"Ojalá llueva mañana",
+  conv:"React to news with 'me alegra que', 'dudo que'.",
+  mins:420, quiz:[
+   ["Ojalá ___ mañana.",["llueva","llueve","lloverá","llovió"],0,"Ojalá siempre pide subjuntivo."],
+   ["Me alegra que ___ aquí.",["estés","estás","estarás","eres"],0,"Emoción → subjuntivo: estés."],
+   ["Dudo que él ___ la respuesta.",["sepa","sabe","sabrá","supo"],0,"Duda → subjuntivo: sepa."],
+   ["Creo que ella ___ razón.",["tiene","tenga","tuviera","haya tenido"],0,"Creer (afirmativo) NO dispara subjuntivo: tiene."],
+   ["Cuando ___ a casa, te llamo.",["llegue","llego","llegaré","llegué"],0,"Cuando + futuro → subjuntivo: llegue."]]},
+ {n:28, name:"Imperfecto de subjuntivo", why:"Unlocks real hypotheticals with condicional", ex:"Si tuviera tiempo, viajaría más",
+  conv:"Complete 'si yo fuera...' sentences about alternate lives.",
+  mins:600, quiz:[
+   ["Si ___ tiempo, viajaría más.",["tuviera","tendría","tengo","tuve"],0,"Si + imperfecto de subjuntivo: tuviera."],
+   ["Si yo ___ tú, aceptaría la oferta.",["fuera","sería","soy","era"],0,"Si yo fuera tú — hipótesis irreal."],
+   ["Quería que mis hijos ___ español.",["aprendieran","aprenden","aprenderán","aprendan"],0,"Pasado + que → imperfecto de subjuntivo: aprendieran."],
+   ["Si ___, iríamos hoy mismo.",["pudiéramos","podríamos","podemos","pudimos"],0,"Si + pudiéramos … iríamos."],
+   ["Me pidió que le ___ con el proyecto.",["ayudara","ayudaría","ayudo","ayudé"],0,"Pidió que + imperfecto de subjuntivo: ayudara."]]},
+ {n:29, name:"Discurso indirecto", why:"Reported speech, ties multiple tenses together", ex:"Dijo que vendría",
+  conv:"Tell me what someone told you yesterday.",
+  mins:300, quiz:[
+   ["“Vendré mañana” → Dijo que ___ al día siguiente.",["vendría","vendrá","viene","venga"],0,"Futuro → condicional: vendría."],
+   ["“Estoy cansada” → Me dijo que ___ cansada.",["estaba","está","estará","estuviera"],0,"Presente → imperfecto: estaba."],
+   ["Preguntó si ___ ayudarlo.",["podía","puedo","podré","pueda"],0,"Presente → imperfecto: podía."],
+   ["“Ya terminamos” → Dijeron que ya ___.",["habían terminado","terminarán","terminan","hayan terminado"],0,"Pasado → pluscuamperfecto: habían terminado."],
+   ["“Voy al cine” → Dijo que ___ al cine.",["iba","va","irá","vaya"],0,"Presente → imperfecto: iba."]]},
+]},
+{ name:"Continuous Background Learning", eyebrow:"Siempre", topics:[
+ {n:"∞1", label:"Ongoing: Preposiciones (ongoing)", name:"Preposiciones (ongoing)", why:"Note every preposition error your teacher corrects; keep a running list", ex:"Depende de ti, no en ti",
+  conv:"Correct my prepositions aggressively in every conversation.",
+  mins:0, quiz:[
+   ["Nos vemos ___ las tres.",["a","en","por","de"],0,"Hora → a las tres."],
+   ["El regalo es ___ mi esposa.",["para","por","a","de"],0,"Destinatario → para."],
+   ["Viajamos ___ avión a Cancún.",["en","por","a","con"],0,"Medio de transporte → en avión."],
+   ["Me preocupo ___ mis hijos.",["por","de","en","para"],0,"Preocuparse por."],
+   ["La casa está cerca ___ la escuela.",["de","a","en","por"],0,"Cerca de."]]},
+ {n:"∞2", label:"Ongoing: Verbos irregulares (ongoing)", name:"Verbos irregulares (ongoing)", why:"Irregulars come up in every tense; keep a personal 'most missed' list", ex:"Quiz me on my 10 most-missed irregular verbs",
+  conv:"Quiz me on my 10 most-missed irregular verbs.",
+  mins:0, quiz:[
+   ["Yo ___ la respuesta. (saber, presente)",["sé","sabo","sepo","sabo yo"],0,"Saber → yo sé."],
+   ["Ellos ___ tarde anoche. (venir)",["vinieron","venieron","vinireon","vendrieron"],0,"Venir → vinieron."],
+   ["___ mucha gente en el evento. (haber, futuro)",["Habrá","Haberá","Habrán","Hayará"],0,"Haber → habrá (siempre singular)."],
+   ["Espero que me ___ buenas noticias. (dar)",["den","dan","darán","dieran hoy"],0,"Dar, subjuntivo → den."],
+   ["He ___ a empezar. (volver)",["vuelto","volvido","vuelvido","volviendo"],0,"Volver → vuelto."]]},
+]}];
+
+/* ================= state ================= */
+const KEY='habla-v2';
+const PKEY='habla-profile';
+
+function migrateFlat(obj){                       // v1 flat topic-map → v2 profile shape
+  if(obj&&obj.profiles) return obj;
+  const topics={}; let reset=0;
+  Object.keys(obj||{}).forEach(k=>{ if(k==='_reset') reset=obj[k]; else if(k[0]!=='_') topics[k]=obj[k]; });
+  if(!Object.keys(topics).length&&!reset) return {profiles:{}};
+  return {profiles:{p1:{name:'Ethan',topics,reset}}};
+}
+let DB={profiles:{}};
+try{
+  const v2=localStorage.getItem(KEY), v1=localStorage.getItem('habla-v1');
+  DB=v2?JSON.parse(v2):migrateFlat(JSON.parse(v1||'{}'));
+}catch(e){ DB={profiles:{}}; }
+if(!Object.keys(DB.profiles).length) DB.profiles.p1={name:'Ethan',topics:{},reset:0};
+
+let activeId=localStorage.getItem(PKEY);
+if(!activeId||!DB.profiles[activeId]) activeId=Object.keys(DB.profiles)[0];
+const P=()=>DB.profiles[activeId];
+const st=id=>P().topics[id]||(P().topics[id]={status:'none',sessions:0,last:null,best:null,passed:false});
+const touch=x=>{ x.u=Date.now(); };
+const save=()=>{ try{localStorage.setItem(KEY,JSON.stringify(DB));localStorage.setItem(PKEY,activeId);}catch(e){} schedulePush(); };
+
+/* ---- cloud sync: claude.ai artifact self-save, or a configured HTTP endpoint ---- */
+const DATA='data/progress.json';
+let art=null, pushTimer=null, pushRetries=0;
+let SYNC=null; try{ SYNC=localStorage.getItem('habla-sync')||null; }catch(e){}
+const canSync=()=>!!(art||SYNC);
+
+function mergeDB(a,b){
+  const out={profiles:{}};
+  const pids=new Set([...Object.keys(a.profiles||{}),...Object.keys(b.profiles||{})]);
+  pids.forEach(pid=>{
+    const pa=(a.profiles||{})[pid], pb=(b.profiles||{})[pid];
+    if(!pa||!pb){ out.profiles[pid]=pa||pb; return; }
+    const reset=Math.max(pa.reset||0,pb.reset||0);
+    const topics={};
+    new Set([...Object.keys(pa.topics||{}),...Object.keys(pb.topics||{})]).forEach(tid=>{
+      const ra=(pa.topics||{})[tid], rb=(pb.topics||{})[tid];
+      const pick=!ra?rb:!rb?ra:((rb.u||0)>(ra.u||0)?rb:ra);
+      if(pick&&(pick.u||0)>=reset) topics[tid]=pick;
+    });
+    const custom={};
+    new Set([...Object.keys(pa.custom||{}),...Object.keys(pb.custom||{})]).forEach(cid=>{
+      const ra=(pa.custom||{})[cid], rb=(pb.custom||{})[cid];
+      custom[cid]=!ra?rb:!rb?ra:((rb.u||0)>(ra.u||0)?rb:ra);
+    });
+    out.profiles[pid]={name:pb.name||pa.name,topics,custom,reset};
+  });
+  return out;
+}
+function setSyncUI(mode){
+  const el=document.getElementById('syncline'); if(!el) return;
+  el.textContent = mode==='cloud' ? '☁️ Progreso sincronizado con tu cuenta — disponible en todos tus dispositivos.'
+                 : '💾 Progreso guardado solo en este dispositivo.';
+}
+function schedulePush(){
+  if(!canSync()) return;
+  clearTimeout(pushTimer); pushTimer=setTimeout(push,2500);
+}
+async function push(){
+  if(!canSync()) return;
+  clearTimeout(pushTimer); pushTimer=null;
+  if(art){
+    try{
+      await art.publish({[DATA]:JSON.stringify(DB)});
+      pushRetries=0; setSyncUI('cloud');
+    }catch(e){
+      const code=e&&e.code;
+      if(code==='not_granted'||code==='not_writer'||code==='not_declared'||code==='capability_disabled'||code==='capability_removed'){
+        art=null; setSyncUI('local');          // read-only or unavailable: stay local-only
+      }else if(code==='conflict'){
+        /* another view won; the shell reloads us and init re-merges */
+      }else if(code==='rate_limited'){
+        pushTimer=setTimeout(push,30000);
+      }else if(pushRetries<2){
+        pushRetries++; pushTimer=setTimeout(push,8000+Math.random()*4000);
+      }
+    }
+    return;
+  }
+  try{
+    const r=await fetch(SYNC,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(DB)});
+    if(!r.ok) throw new Error('http '+r.status);
+    pushRetries=0; setSyncUI('cloud');
+  }catch(e){
+    if(pushRetries<2){ pushRetries++; pushTimer=setTimeout(push,8000+Math.random()*4000); }
+    else setSyncUI('local');
+  }
+}
+async function pullMerge(getServer){
+  let server={profiles:{}};
+  try{ server=migrateFlat(await getServer())||{profiles:{}}; }catch(e){}
+  const merged=mergeDB(server,DB);
+  const localChanged=JSON.stringify(merged)!==JSON.stringify(DB);
+  const serverStale=JSON.stringify(merged)!==JSON.stringify(server);
+  DB=merged;
+  if(!DB.profiles[activeId]) activeId=Object.keys(DB.profiles)[0];
+  if(localChanged){ try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){} render(); }
+  if(serverStale) schedulePush();
+}
+async function initSync(){
+  if(window.claude&&window.claude.use){
+    try{ art=await window.claude.use('artifact'); }catch(e){ art=null; }
+  }
+  if(art){
+    setSyncUI('cloud');
+    await pullMerge(async()=>{ const r=await fetch(DATA,{cache:'no-store'}); return r.ok?r.json():{profiles:{}}; });
+    return;
+  }
+  if(SYNC){
+    setSyncUI('cloud');
+    await pullMerge(async()=>{ const r=await fetch(SYNC,{cache:'no-store'}); return r.ok?r.json():{profiles:{}}; });
+    return;
+  }
+  setSyncUI('local');
+}
+document.addEventListener('visibilitychange',()=>{ if(document.hidden&&pushTimer) push(); });
+
+const ALL=[]; PHASES.forEach((p,pi)=>p.topics.forEach(t=>{t.id='t'+t.n; t.pi=pi; ALL.push(t);}));
+const promptFor=t=>{
+  const label=t.label||`#${t.n}: ${t.name}`;
+  let out=TEMPLATE(label)+`\n\nToday's conversation angle: ${t.conv}`;
+  if(t.custom) out+=`\n\nThis is a personal weak spot I discovered myself${t.why&&t.why!=='Debilidad personal'?': '+t.why:''}. At the end of the session, give me a short oral quiz (5 quick questions) on exactly this, and tell me honestly whether I have mastered it or need another session.`;
+  return out;
+};
+function customTopics(){
+  const c=P().custom||{};
+  return Object.keys(c).filter(k=>!c[k].del).map(cid=>({
+    id:cid, n:'★', name:c[cid].name, why:c[cid].why||'Debilidad personal',
+    ex:null, conv:c[cid].conv, mins:0, custom:true, label:'Personal: '+c[cid].name
+  }));
+}
+
+/* ================= render ================= */
+const $=s=>document.querySelector(s);
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function statusChip(s){
+  return s==='solid'?'<span class="chip solid">Sólido</span>'
+       : s==='progress'?'<span class="chip progress">En curso</span>'
+       : '<span class="chip none">Pendiente</span>';
+}
+function fmtMins(m){ if(!m) return 'ongoing'; return m>=60 ? (Math.round(m/60*10)/10)+' h' : m+' min'; }
+
+function renderProfiles(){
+  const box=$('#profiles'); box.innerHTML='';
+  Object.keys(DB.profiles).forEach(pid=>{
+    const b=document.createElement('button');
+    b.className='pchip'+(pid===activeId?' active':'');
+    b.textContent=DB.profiles[pid].name;
+    b.addEventListener('click',()=>{
+      if(pid===activeId) return;
+      activeId=pid; try{localStorage.setItem(PKEY,activeId);}catch(e){}
+      render(); toast('Perfil: '+DB.profiles[pid].name);
+    });
+    box.appendChild(b);
+  });
+  const add=document.createElement('button');
+  add.className='pchip add'; add.textContent='+ Perfil';
+  add.addEventListener('click',()=>{
+    const name=(prompt('Nombre del nuevo perfil:')||'').trim();
+    if(!name) return;
+    const pid='p'+Date.now().toString(36);
+    DB.profiles[pid]={name,topics:{},reset:0};
+    activeId=pid; save(); render();
+    toast('Perfil creado: '+name);
+  });
+  box.appendChild(add);
+}
+
+function render(){
+  renderProfiles();
+  const root=$('#phases'); root.innerHTML='';
+  PHASES.forEach(p=>{
+    const done=p.topics.filter(t=>st(t.id).status==='solid').length;
+    const sec=document.createElement('section'); sec.className='phase';
+    sec.innerHTML=`<div class="phase-head"><div>
+        <p class="phase-eyebrow">${p.eyebrow}</p>
+        <h2 class="phase-title display">${p.name}</h2>
+      </div><span class="phase-count">${done}/${p.topics.length}</span></div>`;
+    p.topics.forEach(t=>sec.appendChild(card(t)));
+    root.appendChild(sec);
+  });
+  root.appendChild(customSection());
+  stats();
+}
+
+function customSection(){
+  const list=customTopics();
+  const done=list.filter(t=>st(t.id).status==='solid').length;
+  const sec=document.createElement('section'); sec.className='phase custom-sec';
+  sec.innerHTML=`<div class="phase-head"><div>
+      <p class="phase-eyebrow">Personal</p>
+      <h2 class="phase-title display">Mis debilidades</h2>
+    </div><span class="phase-count" id="customCount">${done}/${list.length}</span></div>
+    <p class="custom-hint">Agrega lo que descubras que se te dificulta — en clase, en la calle, en una sesión. Cada tema se vuelve una sesión de voz enfocada.</p>`;
+  list.forEach(t=>sec.appendChild(card(t)));
+  const add=document.createElement('button');
+  add.className='addtopic'; add.textContent='+ Agregar debilidad';
+  add.addEventListener('click',()=>{
+    const name=(prompt('¿Qué tema se te dificulta? (p. ej. “ya vs. todavía”, “números grandes”, “teléfono con el plomero”)')||'').trim();
+    if(!name) return;
+    const why=(prompt('¿Qué es exactamente lo difícil? (opcional — se lo diremos al tutor)')||'').trim();
+    if(!P().custom) P().custom={};
+    const cid='c'+Date.now().toString(36);
+    P().custom[cid]={name, why, conv:'Drill me repeatedly on this specific weakness with rapid-fire conversational practice. Create realistic situations from my daily life that force me to use it again and again.', u:Date.now()};
+    save(); render();
+    toast('Tema agregado: '+name);
+  });
+  sec.appendChild(add);
+  return sec;
+}
+
+function card(t){
+  const s=st(t.id);
+  const el=document.createElement('article');
+  el.className='topic st-'+s.status; el.id='card-'+t.id;
+  const q=!t.quiz?'Quiz oral al final de cada sesión — marca sólido abajo cuando lo domines'
+        : s.best!==null?`Mejor quiz: <b class="${s.passed?'pass':''}">${s.best}/5</b>${s.passed?' ✓':''}`:'Quiz pendiente — pásalo (4/5) para marcar sólido';
+  const sess=s.sessions?`${s.sessions} sesión${s.sessions>1?'es':''}${s.last?' · última: '+new Date(s.last).toLocaleDateString('es-MX',{day:'numeric',month:'short'}):''}`:'Sin sesiones todavía';
+  el.innerHTML=`
+    <button class="topic-row" aria-expanded="false">
+      <span class="tnum">${t.n}</span>
+      <span class="tmain"><span class="tname">${esc(t.name)}</span><span class="twhy">${esc(t.why)}</span></span>
+      <span class="tside">${statusChip(s.status)}<span class="tmeta">${t.custom?'personal':fmtMins(t.mins)}</span></span>
+    </button>
+    <div class="tbody">
+      ${t.ex?`<p class="example">“${esc(t.ex)}”</p>`:''}
+      <p class="convo"><b>Hoy en la sesión:</b> ${esc(t.conv)}</p>
+      <p class="quizline">${q}</p>
+      <div class="actions">
+        <a class="btn btn-primary" data-act="start" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener">🎙 Sesión de voz</a>
+        <button class="btn btn-secondary" data-act="copy">Copiar</button>
+        ${t.quiz?'<button class="btn btn-quiz" data-act="quiz">Quiz</button>':''}
+      </div>
+      <p class="sessions-note">${sess} · Al abrir ChatGPT, toca el ícono de voz 🎙</p>
+      <div class="statusset" role="group" aria-label="Estado">
+        <button data-set="none" class="${s.status==='none'?'on-none':''}">Pendiente</button>
+        <button data-set="progress" class="${s.status==='progress'?'on-progress':''}">En curso</button>
+        <button data-set="solid" class="${s.status==='solid'?'on-solid':''}">Sólido</button>
+      </div>
+      ${t.custom?'<button class="delT" data-act="del">Eliminar este tema</button>':''}
+    </div>`;
+  el.querySelector('.topic-row').addEventListener('click',()=>{
+    const open=el.classList.toggle('open');
+    el.querySelector('.topic-row').setAttribute('aria-expanded',open);
+  });
+  el.querySelector('[data-act="start"]').addEventListener('click',()=>{
+    copyText(promptFor(t));
+    const x=st(t.id); x.sessions++; x.last=Date.now();
+    if(x.status==='none') x.status='progress';
+    touch(x); save(); refresh(t);
+    toast('Prompt copiado · abriendo ChatGPT — toca el ícono de voz 🎙');
+  });
+  el.querySelector('[data-act="copy"]').addEventListener('click',()=>{
+    copyText(promptFor(t)); toast('Prompt copiado — pégalo donde quieras');
+  });
+  const qb=el.querySelector('[data-act="quiz"]'); if(qb) qb.addEventListener('click',()=>openQuiz(t));
+  const db=el.querySelector('[data-act="del"]'); if(db) db.addEventListener('click',()=>{
+    if(confirm('¿Eliminar el tema “'+t.name+'”?')){
+      const c=P().custom[t.id]; c.del=Date.now(); c.u=Date.now(); save(); render();
+      toast('Tema eliminado');
+    }
+  });
+  el.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>{
+    const x=st(t.id); x.status=b.dataset.set; touch(x); save(); refresh(t);
+  }));
+  return el;
+}
+
+function refresh(t){
+  const old=$('#card-'+t.id);
+  const wasOpen=old.classList.contains('open');
+  const el=card(t); if(wasOpen){el.classList.add('open');el.querySelector('.topic-row').setAttribute('aria-expanded','true');}
+  old.replaceWith(el);
+  // phase counts + stats
+  document.querySelectorAll('.phase:not(.custom-sec)').forEach((sec,i)=>{
+    const p=PHASES[i]; if(!p) return;
+    sec.querySelector('.phase-count').textContent=p.topics.filter(x=>st(x.id).status==='solid').length+'/'+p.topics.length;
+  });
+  const cc=document.getElementById('customCount');
+  if(cc){ const list=customTopics(); cc.textContent=list.filter(x=>st(x.id).status==='solid').length+'/'+list.length; }
+  stats();
+}
+
+function stats(){
+  const all=[...ALL,...customTopics()];
+  const total=all.length;
+  const solid=all.filter(t=>st(t.id).status==='solid');
+  const prog=all.filter(t=>st(t.id).status==='progress');
+  const sessions=all.reduce((a,t)=>a+st(t.id).sessions,0);
+  const minsLeft=all.filter(t=>st(t.id).status!=='solid').reduce((a,t)=>a+t.mins,0);
+  $('#stat-solid').textContent=Math.round(solid.length/total*100)+'%';
+  $('#stat-topics').textContent=solid.length+'/'+total;
+  $('#stat-sessions').textContent=sessions;
+  $('#stat-left').textContent=Math.round(minsLeft/60)+' h';
+  $('#totalbar').innerHTML=`<div class="seg-solid" style="width:${solid.length/total*100}%"></div><div class="seg-prog" style="width:${prog.length/total*100}%"></div>`;
+}
+
+/* ================= quiz ================= */
+let Q=null;
+function openQuiz(t){
+  const qs=t.quiz.map(q=>{
+    const idx=[0,1,2,3].sort(()=>Math.random()-.5);
+    return {text:q[0],opts:idx.map(i=>q[1][i]),correct:idx.indexOf(q[2]),why:q[3]};
+  });
+  Q={t,qs,i:0,score:0};
+  $('#overlay').classList.add('show');
+  drawQ();
+}
+function drawQ(){
+  const {t,qs,i}=Q; const q=qs[i];
+  $('#sheet').innerHTML=`
+    <div class="sheet-head"><h3 class="sheet-title display">${esc(t.name)}</h3>
+      <span class="sheet-sub">${i+1} / ${qs.length}</span></div>
+    <p class="qtext">${esc(q.text)}</p>
+    ${q.opts.map((o,k)=>`<button class="opt" data-k="${k}">${esc(o)}</button>`).join('')}
+    <div class="explain" id="explain" hidden></div>
+    <div class="qnav"><button class="btn btn-secondary" id="qclose" style="flex:none;padding:10px 18px">Salir</button></div>`;
+  $('#qclose').addEventListener('click',closeQuiz);
+  document.querySelectorAll('.opt').forEach(b=>b.addEventListener('click',()=>answer(+b.dataset.k)));
+}
+function answer(k){
+  const q=Q.qs[Q.i]; const right=k===q.correct;
+  if(right) Q.score++;
+  document.querySelectorAll('.opt').forEach((b,j)=>{
+    b.disabled=true;
+    if(j===q.correct) b.classList.add('correct');
+    else if(j===k) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+  const ex=$('#explain'); ex.hidden=false;
+  ex.textContent=(right?'✓ Correcto. ':'✗ ')+q.why;
+  setTimeout(()=>{ Q.i++; Q.i<Q.qs.length?drawQ():finishQuiz(); }, right?1100:2300);
+}
+function finishQuiz(){
+  const {t,score,qs}=Q; const pass=score>=4;
+  const s=st(t.id);
+  if(s.best===null||score>s.best) s.best=score;
+  if(pass){ s.passed=true; s.status='solid'; }
+  touch(s); save(); refresh(t);
+  $('#sheet').innerHTML=`
+    <div class="sheet-head"><h3 class="sheet-title display">${esc(t.name)}</h3></div>
+    <div class="result">
+      <div class="big display">${score}/${qs.length}</div>
+      <div class="verdict ${pass?'pass':'fail'}">${pass?'¡Sólido! Tema dominado.':'Casi — necesitas 4/5.'}</div>
+      <p>${pass?'Marcado como sólido en tu lista.':'Haz otra sesión de voz sobre este tema y vuelve a intentarlo.'}</p>
+      ${pass?'':`<button class="btn btn-quiz" id="retry">Reintentar</button>`}
+      <button class="btn btn-secondary" id="qdone">Cerrar</button>
+    </div>`;
+  $('#qdone').addEventListener('click',closeQuiz);
+  const r=$('#retry'); if(r) r.addEventListener('click',()=>openQuiz(t));
+}
+function closeQuiz(){ $('#overlay').classList.remove('show'); Q=null; }
+$('#overlay').addEventListener('click',e=>{ if(e.target.id==='overlay') closeQuiz(); });
+
+/* ================= utils ================= */
+function copyText(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).catch(()=>fallbackCopy(txt)); }
+  else fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} ta.remove();
+}
+let toastTimer=null;
+function toast(msg){
+  const el=$('#toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),3200);
+}
+$('#resetBtn').addEventListener('click',()=>{
+  const p=P();
+  if(confirm('¿Borrar el progreso de '+p.name+'? Esto no se puede deshacer.')){
+    p.topics={}; p.reset=Date.now(); save(); render(); toast('Progreso de '+p.name+' borrado');
+  }
+});
+
+$('#syncBtn').addEventListener('click',()=>{
+  if(art){ toast('Ya sincronizado con tu cuenta de Claude ☁️'); return; }
+  const url=prompt('Pega tu URL de sincronización (la del servidor familiar).\nDéjala vacía para desactivar la sincronización.',SYNC||'');
+  if(url===null) return;
+  const v=url.trim();
+  if(v&&!/^https:\/\//.test(v)){ toast('La URL debe empezar con https://'); return; }
+  SYNC=v||null;
+  try{ v?localStorage.setItem('habla-sync',v):localStorage.removeItem('habla-sync'); }catch(e){}
+  if(SYNC){ toast('Sincronización configurada'); initSync(); }
+  else { setSyncUI('local'); toast('Sincronización desactivada'); }
+});
+
+render();
+initSync();
+</script>
