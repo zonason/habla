@@ -1061,6 +1061,7 @@ function nextPod(t){
 }
 function mediaLines(t,s){
   const parts=[];
+  parts.push(`⏱ ${t.custom?'personal':fmtMins(t.mins)}`);
   if(s.sessions) parts.push(`🎙 ${s.sessions}`);
   if(PODS[t.id]) parts.push(`🎧 ${(s.pods||[]).length}/${PODS[t.id].length}`);
   if(FC[t.id]) parts.push(`🃏 ${s.fcDone?'✓':`${Math.min(s.fcIdx||0,FC[t.id].length)}/${FC[t.id].length}`}`);
@@ -1218,7 +1219,7 @@ function card(t){
     <button class="topic-row" aria-expanded="false">
       <span class="tnum">${t.n}</span>
       <span class="tmain"><span class="tname">${esc(t.name)}</span><span class="twhy">${esc(t.why)}</span></span>
-      <span class="tside">${statusChip(s.status)}<span class="tmeta">${t.custom?'personal':fmtMins(t.mins)}</span>${rivalMark(t)}</span>
+      <span class="tside">${statusChip(s.status)}${rivalMark(t)}</span>
     </button>
     <div class="tbody">
       ${mediaLines(t,s)}
