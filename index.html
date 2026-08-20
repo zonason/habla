@@ -48,6 +48,9 @@
 
   /* ---------- header ---------- */
   header{padding:28px 0 8px}
+  .brandrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .addsmall{flex:none;font:inherit;font-size:13px;font-weight:700;padding:8px 14px;border-radius:99px;border:1.5px dashed var(--card-edge);background:var(--card);color:var(--muted);cursor:pointer;white-space:nowrap}
+  .addsmall:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
   .wordmark{font-size:44px;letter-spacing:-.02em;line-height:1;margin:0}
   .wordmark .dot{color:var(--rosa)}
   .tagline{color:var(--muted);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:8px 0 0}
@@ -159,7 +162,10 @@
 
 <div class="wrap">
   <header>
-    <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
+    <div class="brandrow">
+      <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
+      <button class="addsmall" id="addItemBtn">+ Add Item</button>
+    </div>
     <p class="tagline">Español mexicano · A2/B1 → B2</p>
     <div class="profiles" id="profiles" role="group" aria-label="Perfil"></div>
     <div class="hero-stats">
@@ -690,23 +696,20 @@ function render(){
 function customSection(){
   const list=customTopics();
   const sec=document.createElement('section'); sec.className='custom-sec';
-  sec.style.marginTop='22px';
+  if(list.length) sec.style.marginTop='22px';
   list.forEach(t=>sec.appendChild(card(t)));
-  const add=document.createElement('button');
-  add.className='addtopic'; add.textContent='+ Add Item';
-  add.addEventListener('click',()=>{
-    const name=(prompt('¿Qué tema se te dificulta? (p. ej. “ya vs. todavía”, “números grandes”, “teléfono con el plomero”)')||'').trim();
-    if(!name) return;
-    const why=(prompt('¿Qué es exactamente lo difícil? (opcional — se lo diremos al tutor)')||'').trim();
-    if(!P().custom) P().custom={};
-    const cid='c'+Date.now().toString(36);
-    P().custom[cid]={name, why, conv:'Drill me repeatedly on this specific weakness with rapid-fire conversational practice. Create realistic situations from my daily life that force me to use it again and again.', u:Date.now()};
-    save(); render();
-    toast('Tema agregado: '+name);
-  });
-  sec.appendChild(add);
   return sec;
 }
+$('#addItemBtn').addEventListener('click',()=>{
+  const name=(prompt('¿Qué tema se te dificulta? (p. ej. “ya vs. todavía”, “números grandes”, “teléfono con el plomero”)')||'').trim();
+  if(!name) return;
+  const why=(prompt('¿Qué es exactamente lo difícil? (opcional — se lo diremos al tutor)')||'').trim();
+  if(!P().custom) P().custom={};
+  const cid='c'+Date.now().toString(36);
+  P().custom[cid]={name, why, conv:'Drill me repeatedly on this specific weakness with rapid-fire conversational practice. Create realistic situations from my daily life that force me to use it again and again.', u:Date.now()};
+  save(); render();
+  toast('Tema agregado: '+name);
+});
 
 function card(t){
   const s=st(t.id);
