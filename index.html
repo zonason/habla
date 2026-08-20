@@ -119,6 +119,7 @@
   .btn-primary{background:var(--rosa);color:var(--rosa-ink)}
   .btn-secondary{background:var(--track);color:var(--ink)}
   .btn-quiz{background:var(--cobalt-soft);color:var(--cobalt)}
+  .btn-danger{background:var(--wrong);color:#fff}
   .sessions-note{font-size:13px;color:var(--faint);margin-top:10px;text-align:center}
   .statusset{display:flex;gap:6px;margin-top:12px}
   .statusset button{flex:1;font:inherit;font-size:13.5px;font-weight:700;letter-spacing:.03em;padding:11px 4px;border-radius:9px;border:1px solid var(--card-edge);background:none;color:var(--muted);cursor:pointer}
@@ -165,6 +166,10 @@
   .field:focus{outline:2px solid var(--cobalt);border-color:transparent}
   .field::placeholder{color:var(--faint)}
   textarea.field{min-height:96px;resize:vertical}
+  textarea.field.big{min-height:44vh}
+  .sheet.tall{min-height:72vh}
+  .modal-hint{font-size:14px;color:var(--muted);margin:10px 0 0}
+  .example{white-space:pre-wrap}
   @media (prefers-reduced-motion: reduce){ .toast{transition:none} }
   @media (min-width:520px){ .overlay{align-items:center} .sheet{border-radius:18px} }
 </style>
@@ -196,13 +201,23 @@
 
 <button class="fab" id="addItemBtn">+ Add Item</button>
 <div class="overlay" id="addOverlay" role="dialog" aria-modal="true" aria-label="Nuevo tema">
-  <div class="sheet">
+  <div class="sheet tall">
     <div class="sheet-head"><h3 class="sheet-title display">Nuevo tema</h3></div>
-    <input class="field" id="niName" placeholder="¿Qué se te dificulta? — ya vs. todavía, números…" autocomplete="off">
-    <textarea class="field" id="niWhy" placeholder="¿Qué es exactamente lo difícil? (opcional)"></textarea>
+    <p class="modal-hint">Describe lo que se te dificulta — un tema de gramática, una situación, una palabra que confundes. La primera línea será el título.</p>
+    <textarea class="field big" id="niText" placeholder="ya vs. todavía&#10;&#10;Los confundo cuando hablo rápido, sobre todo en preguntas…"></textarea>
     <div class="actions" style="margin-top:16px">
       <button class="btn btn-secondary" id="niCancel">Cancelar</button>
       <button class="btn btn-primary" id="niSave">Guardar</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-label="Confirmar">
+  <div class="sheet">
+    <div class="sheet-head"><h3 class="sheet-title display" id="cfTitle">¿Seguro?</h3></div>
+    <p class="modal-hint" id="cfMsg"></p>
+    <div class="actions" style="margin-top:18px">
+      <button class="btn btn-secondary" id="cfNo">Cancelar</button>
+      <button class="btn btn-danger" id="cfYes">Sí, borrar</button>
     </div>
   </div>
 </div>
@@ -628,7 +643,8 @@ function customTopics(){
   const c=P().custom||{};
   return Object.keys(c).filter(k=>!c[k].del).map(cid=>({
     id:cid, n:'★', name:c[cid].name, why:c[cid].why||'Debilidad personal',
-    ex:null, conv:c[cid].conv, mins:0, custom:true, label:'Personal: '+c[cid].name
+    ex:(c[cid].why&&c[cid].why!==c[cid].name)?c[cid].why:null,
+    conv:c[cid].conv, mins:0, custom:true, label:'Personal: '+c[cid].name
   }));
 }
 
@@ -716,20 +732,33 @@ function customSection(){
   list.forEach(t=>sec.appendChild(card(t)));
   return sec;
 }
+let cfAction=null;
+function confirmSheet(msg,onYes){
+  cfAction=onYes; $('#cfMsg').textContent=msg;
+  $('#confirmOverlay').classList.add('show');
+}
+$('#cfNo').addEventListener('click',()=>{ cfAction=null; $('#confirmOverlay').classList.remove('show'); });
+$('#confirmOverlay').addEventListener('click',e=>{ if(e.target.id==='confirmOverlay'){ cfAction=null; $('#confirmOverlay').classList.remove('show'); } });
+$('#cfYes').addEventListener('click',()=>{
+  $('#confirmOverlay').classList.remove('show');
+  const fn=cfAction; cfAction=null; if(fn) fn();
+});
+
 $('#addItemBtn').addEventListener('click',()=>{
-  $('#niName').value=''; $('#niWhy').value='';
+  $('#niText').value='';
   $('#addOverlay').classList.add('show');
-  setTimeout(()=>$('#niName').focus(),60);
+  setTimeout(()=>$('#niText').focus(),60);
 });
 $('#niCancel').addEventListener('click',()=>$('#addOverlay').classList.remove('show'));
 $('#addOverlay').addEventListener('click',e=>{ if(e.target.id==='addOverlay') $('#addOverlay').classList.remove('show'); });
 $('#niSave').addEventListener('click',()=>{
-  const name=$('#niName').value.trim();
-  if(!name){ $('#niName').focus(); return; }
-  const why=$('#niWhy').value.trim();
+  const text=$('#niText').value.trim();
+  if(!text){ $('#niText').focus(); return; }
+  let name=text.split('\n')[0].trim();
+  if(name.length>60) name=name.slice(0,57)+'…';
   if(!P().custom) P().custom={};
   const cid='c'+Date.now().toString(36);
-  P().custom[cid]={name, why, conv:'Drill me repeatedly on this specific weakness with rapid-fire conversational practice. Create realistic situations from my daily life that force me to use it again and again.', u:Date.now()};
+  P().custom[cid]={name, why:text, conv:'Drill me repeatedly on this specific weakness with rapid-fire conversational practice. Create realistic situations from my daily life that force me to use it again and again.', u:Date.now()};
   $('#addOverlay').classList.remove('show');
   save(); render();
   toast('Tema agregado: '+name);
@@ -781,10 +810,10 @@ function card(t){
   });
   const qb=el.querySelector('[data-act="quiz"]'); if(qb) qb.addEventListener('click',()=>openQuiz(t));
   const db=el.querySelector('[data-act="del"]'); if(db) db.addEventListener('click',()=>{
-    if(confirm('¿Eliminar el tema “'+t.name+'”?')){
+    confirmSheet('Se eliminará el tema “'+t.name+'” y su progreso.',()=>{
       const c=P().custom[t.id]; c.del=Date.now(); c.u=Date.now(); save(); render();
       toast('Tema eliminado');
-    }
+    });
   });
   el.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>{
     const x=st(t.id); x.status=b.dataset.set; touch(x); save(); refresh(t);
@@ -893,9 +922,9 @@ function toast(msg){
 }
 $('#resetBtn').addEventListener('click',()=>{
   const p=P();
-  if(confirm('¿Borrar el progreso de '+p.name+'? Esto no se puede deshacer.')){
+  confirmSheet('Se borrará todo el progreso de '+p.name+' — sesiones, estados y quizzes. Esto no se puede deshacer.',()=>{
     p.topics={}; p.reset=Date.now(); save(); render(); toast('Progreso de '+p.name+' borrado');
-  }
+  });
 });
 
 $('#syncBtn').addEventListener('click',()=>{
