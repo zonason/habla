@@ -930,7 +930,7 @@ function avState(p){
   return 'happy';
 }
 const avSrc=(p,state)=>'avatars/'+avWho(p)+'-'+(state||avState(p))+'.png';
-const celebState=()=>avWho(P())==='ethan'?'congrats':'ecstatic';
+const celebState=()=>'congrats';
 function profSolid(p){ const tt=p.topics||{}; return ALL.filter(x=>(tt[x.id]||{}).status==='solid').length; }
 function avatarPop(state,msg){
   const el=document.createElement('div'); el.className='avpop';
