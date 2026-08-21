@@ -197,9 +197,13 @@ Return ONLY JSON, no fences: {"title":"short Spanish title (max 60 chars)","lyri
           negative_tags: NEGATIVE_TAGS,
         }),
       });
-      const gd = gen.ok ? await gen.json() : null;
-      const taskId = gd && (gd.id || (gd.data && gd.data.id));
-      if (!taskId) return new Response(JSON.stringify({ status: 'failed' }), { headers: jcors });
+      const gd = await gen.json().catch(() => null);
+      const taskId = gen.ok && gd && (gd.id || (gd.data && gd.data.id));
+      if (!taskId) {
+        const code = gd && gd.error && gd.error.code;
+        const reason = code === 'insufficient_quota' ? 'credits' : 'create';
+        return new Response(JSON.stringify({ status: 'failed', reason }), { headers: jcors });
+      }
       await env.HABLA.put(gkey, JSON.stringify({ task: taskId, title: lyr.title || topic, lyrics: lyr.lyrics }), { expirationTtl: 3600 });
       return new Response(JSON.stringify({ status: 'pending' }), { headers: jcors });
     }

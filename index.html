@@ -1437,7 +1437,12 @@ async function radioPoll(){
     if(!RAD) return;
     if(d.status==='ready'){ radioPlayer(d); return; }
     if(d.status==='unconfigured'){ radioStatus('The server is missing its music API key (EVOLINK_API_KEY).'); return; }
-    if(d.status==='failed'){ radioStatus('Generation failed — try again or pick another style.'); return; }
+    if(d.status==='failed'){
+      radioStatus(d.reason==='credits'
+        ?'Out of music credits — top up your EvoLink account, then try again.'
+        :'Generation failed — try again or pick another style.');
+      return;
+    }
     radTimer=setTimeout(radioPoll,5000);
   }catch(e){ radTimer=setTimeout(radioPoll,8000); }
 }
