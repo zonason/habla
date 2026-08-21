@@ -46,6 +46,14 @@ The app is a single static file: [`index.html`](index.html), served with GitHub 
 
    (paste the key when prompted; it is stored encrypted on Cloudflare, never in git)
 
+   **Optional — Radio (AI learning songs)**: the EvoLink key enables `/song`
+   (Claude writes rhyming topic lyrics, Suno sings them). Ethan's key is in the
+   macOS Keychain; deploy it with:
+
+   ```bash
+   security find-generic-password -a habla -s evolink-api-key -w | wrangler secret put EVOLINK_API_KEY
+   ```
+
 4. Invent a long random family key (this is effectively the password —
    anyone with the full URL can read/write the progress data):
 

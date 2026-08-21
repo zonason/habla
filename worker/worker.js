@@ -1,17 +1,69 @@
 /**
- * Habla sync + content generation.
+ * Habla sync + content generation + radio.
  *
  * GET  /<secret-key>            -> the stored progress JSON (or an empty shell)
  * PUT  /<secret-key>            -> replace the stored progress JSON
  * POST /<secret-key>/generate   -> Claude generates content for an added weak-spot
- *                                  body: {name, text} -> {why, example, conv, quiz[5]}
+ *                                  body: {name, text} -> {why, example, conv, quiz[10]}
+ * POST /<secret-key>/song       -> ensure a learning song exists for a topic+genre
+ *                                  body: {tid, topic, teach, genre}
+ *                                  -> {status:'ready', url, title, lyrics} | {status:'pending'} | {status:'failed'}
+ *                                  Client polls by re-POSTing every few seconds while pending.
  *
  * The secret key is the first path segment: a long random string you invent
  * (e.g. `openssl rand -hex 16`). Anyone with the full URL can read/write,
  * so treat the URL like a shared family password.
  *
- * Secrets: `wrangler secret put ANTHROPIC_API_KEY` enables /generate.
+ * Secrets: `wrangler secret put ANTHROPIC_API_KEY` enables /generate and /song lyrics;
+ *          `wrangler secret put EVOLINK_API_KEY` enables /song music generation.
  */
+
+const GENRE_STYLES = {
+  acoustic: 'acoustic ballad, gentle nylon-string guitar, very slow tempo, extremely clear enunciated vocals, minimal instrumentation, quiet backing, language-learning song',
+  pop:      'soft latin pop, slow tempo, bright very clear vocals, simple clean arrangement, gentle beat',
+  corrido:  'mexican corrido, acoustic guitars and bajo sexto, relaxed tempo, clear storytelling vocals, traditional',
+  bolero:   'romantic bolero, soft guitar trio, very slow, warm clear vocals, intimate',
+};
+const NEGATIVE_TAGS = 'fast rap, shouting, heavy metal, distortion, mumbling, autotune, dense mix';
+
+function findAudioUrl(o) {
+  let found = null;
+  const prefer = ['audio_url', 'audioUrl', 'audio', 'url'];
+  (function walk(v) {
+    if (found) return;
+    if (typeof v === 'string') {
+      if (/^https?:\/\/\S+\.(mp3|m4a|wav|ogg)(\?|$)/i.test(v)) found = v;
+    } else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === 'object') {
+      for (const k of prefer) {
+        if (typeof v[k] === 'string' && /^https?:\/\//.test(v[k])) { found = v[k]; return; }
+      }
+      Object.values(v).forEach(walk);
+    }
+  })(o);
+  return found;
+}
+
+async function claudeJson(env, prompt, maxTokens) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  if (!r.ok) return null;
+  const data = await r.json();
+  let txt = (data.content && data.content[0] && data.content[0].text) || '';
+  txt = txt.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try { return JSON.parse(txt); } catch { return null; }
+}
 export default {
   async fetch(req, env) {
     const cors = {
@@ -99,6 +151,71 @@ Rules: every quiz answer must be unambiguously correct for Mexican Spanish; dist
       return new Response(JSON.stringify({ why: g.why, example: g.example, conv: g.conv, quiz: g.quiz }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       });
+    }
+
+    if (req.method === 'POST' && op === 'song') {
+      const jcors = { ...cors, 'Content-Type': 'application/json' };
+      if (!env.ANTHROPIC_API_KEY || !env.EVOLINK_API_KEY) {
+        return new Response(JSON.stringify({ status: 'unconfigured' }), { status: 501, headers: jcors });
+      }
+      let body;
+      try { body = await req.json(); } catch { return new Response('not json', { status: 400, headers: cors }); }
+      const tid = String(body.tid || '').slice(0, 24);
+      const topic = String(body.topic || '').slice(0, 120);
+      const teach = String(body.teach || '').slice(0, 1200);
+      const genre = GENRE_STYLES[body.genre] ? body.genre : 'acoustic';
+      if (!tid || !topic) return new Response('missing fields', { status: 400, headers: cors });
+      const gkey = `song:${key}:${tid}:${genre}`;
+      const evoAuth = { 'Authorization': 'Bearer ' + env.EVOLINK_API_KEY, 'content-type': 'application/json' };
+
+      const cached = await env.HABLA.get(gkey, { type: 'json' });
+      if (cached && cached.url) {
+        return new Response(JSON.stringify({ status: 'ready', ...cached }), { headers: jcors });
+      }
+      if (cached && cached.task) {
+        const r = await fetch('https://api.evolink.ai/v1/tasks/' + cached.task, { headers: evoAuth });
+        const d = r.ok ? await r.json() : null;
+        const st = d && (d.status || (d.data && d.data.status));
+        const url = d && findAudioUrl(d);
+        if (url) {
+          const rec = { url, title: cached.title, lyrics: cached.lyrics };
+          await env.HABLA.put(gkey, JSON.stringify(rec));
+          return new Response(JSON.stringify({ status: 'ready', ...rec }), { headers: jcors });
+        }
+        if (st === 'failed' || st === 'error') {
+          await env.HABLA.delete(gkey);
+          return new Response(JSON.stringify({ status: 'failed' }), { headers: jcors });
+        }
+        return new Response(JSON.stringify({ status: 'pending' }), { headers: jcors });
+      }
+
+      // new song: Claude writes the lyrics, then Suno (via EvoLink) sings them
+      const lyr = await claudeJson(env, `Write a short Spanish learning song for an A2-level adult learner. Topic: ${topic}.
+Key teaching content to weave in:
+${teach}
+
+Requirements: rhyming lines; a simple, extremely repetitive chorus that drills the topic's key forms (repetition aids memory); verses that use the forms in everyday Mexican-life sentences; Mexican Spanish; total 12-20 short lines; format with [Verse 1], [Chorus], [Verse 2], [Chorus] tags.
+Return ONLY JSON, no fences: {"title":"short Spanish title (max 60 chars)","lyrics":"the tagged lyrics with \\n line breaks"}`, 1200);
+      if (!lyr || !lyr.lyrics) return new Response(JSON.stringify({ status: 'failed' }), { headers: jcors });
+
+      const gen = await fetch('https://api.evolink.ai/v1/audios/generations', {
+        method: 'POST',
+        headers: evoAuth,
+        body: JSON.stringify({
+          model: 'suno-v5-beta',
+          custom_mode: true,
+          instrumental: false,
+          style: GENRE_STYLES[genre],
+          title: String(lyr.title || topic).slice(0, 80),
+          prompt: String(lyr.lyrics).slice(0, 4900),
+          negative_tags: NEGATIVE_TAGS,
+        }),
+      });
+      const gd = gen.ok ? await gen.json() : null;
+      const taskId = gd && (gd.id || (gd.data && gd.data.id));
+      if (!taskId) return new Response(JSON.stringify({ status: 'failed' }), { headers: jcors });
+      await env.HABLA.put(gkey, JSON.stringify({ task: taskId, title: lyr.title || topic, lyrics: lyr.lyrics }), { expirationTtl: 3600 });
+      return new Response(JSON.stringify({ status: 'pending' }), { headers: jcors });
     }
 
     return new Response('method not allowed', { status: 405, headers: cors });

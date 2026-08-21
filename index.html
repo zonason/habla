@@ -165,6 +165,11 @@
   .btn-quiz{background:var(--cobalt-soft);color:var(--cobalt)}
   .btn-danger{background:var(--wrong);color:#fff}
   .btn-pod{background:var(--gold-soft);color:var(--gold)}
+  .btn-radio{background:var(--rosa-soft);color:var(--rosa)}
+  .genre-sub{display:block;font-size:12.5px;font-weight:600;opacity:.75;margin-top:2px}
+  .radio-lyrics{white-space:pre-wrap;font-size:15.5px;line-height:1.6;margin-top:14px;background:var(--track);border-radius:10px;padding:14px;max-height:38vh;overflow-y:auto}
+  .radio-status{text-align:center;color:var(--muted);font-size:15px;margin-top:22px}
+  audio{width:100%;margin-top:14px}
   .btn-cards{background:var(--green-soft);color:var(--green)}
   .medialine{font-size:13.5px;color:var(--muted);margin:10px 0 0;font-variant-numeric:tabular-nums}
   .medialine b{color:var(--ink)}
@@ -283,6 +288,9 @@
     </div>
   </div>
 </div>
+<div class="overlay" id="radioOverlay" role="dialog" aria-modal="true" aria-label="Radio">
+  <div class="sheet" id="radioSheet"></div>
+</div>
 <div class="overlay fs" id="profOverlay" role="dialog" aria-modal="true" aria-label="Progress">
   <div class="sheet" id="profSheet" style="overflow-y:auto"></div>
 </div>
@@ -308,7 +316,8 @@ const IC={
  ai:'<svg class="ic" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="2.5" y="13.5" width="4.5" height="7" rx="2"/><rect x="17" y="13.5" width="4.5" height="7" rx="2"/><path d="M19.2 20.5c0 1.8-3.2 2.5-7.2 2.5"/></svg>',
  pod:'<svg class="ic" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="2.5" y="13.5" width="4.5" height="7" rx="2"/><rect x="17" y="13.5" width="4.5" height="7" rx="2"/></svg>',
  fc:'<svg class="ic" viewBox="0 0 24 24"><rect x="7.5" y="3" width="13" height="15" rx="2"/><rect x="3.5" y="6.5" width="13" height="15" rx="2"/></svg>',
- quiz:'<svg class="ic" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path d="M8 12.5l3 3 5.5-6.5"/></svg>'
+ quiz:'<svg class="ic" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path d="M8 12.5l3 3 5.5-6.5"/></svg>',
+ radio:'<svg class="ic" viewBox="0 0 24 24"><path d="M9 18V6.5l10-2.5V15"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/></svg>'
 };
 
 const TEMPLATE = (label) => `You are my Spanish tutor. I'm at an A2 level. Today's focus: [${label}].
@@ -656,13 +665,18 @@ function mergeDB(a,b){
       const ra=(pa.custom||{})[cid], rb=(pb.custom||{})[cid];
       custom[cid]=!ra?rb:!rb?ra:((rb.u||0)>(ra.u||0)?rb:ra);
     });
+    const stars={};
+    new Set([...Object.keys(pa.stars||{}),...Object.keys(pb.stars||{})]).forEach(k=>{
+      const ra=(pa.stars||{})[k], rb=(pb.stars||{})[k];
+      stars[k]=!ra?rb:!rb?ra:((rb.u||0)>(ra.u||0)?rb:ra);
+    });
     // profile-level fields honor the reset stamp so a sync merge can't resurrect wiped XP/streak
     const va=(pa.xpTs||0)>=reset, vb=(pb.xpTs||0)>=reset;
     const rd=reset?(d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'))(new Date(reset)):'';
     const act=Object.fromEntries(Object.entries(Object.assign({},pa.act||{},pb.act||{})).filter(([d])=>d>=rd));
     const lastCands=[pa.last,pb.last].filter(l=>l&&(l.ts||0)>=reset);
     const last=lastCands.sort((x,y)=>(y.ts||0)-(x.ts||0))[0]||null;
-    out.profiles[pid]={name:pb.name||pa.name,topics,custom,reset,
+    out.profiles[pid]={name:pb.name||pa.name,topics,custom,stars,reset,
       xp:Math.max(va?(pa.xp||0):0, vb?(pb.xp||0):0),
       xpTs:Math.max(va?(pa.xpTs||0):0, vb?(pb.xpTs||0):0),
       act,
@@ -1178,6 +1192,7 @@ function renderStart(){
   if(FC[t.id]&&mode!=='fc') opts.push({html:`${IC.fc} Flashcards`,cls:'btn btn-cards',fn:()=>{menu.hidden=true;openCards(t);}});
   if(PODS[t.id]&&mode!=='pod') opts.push({html:`${IC.pod} Podcast`,cls:'btn btn-pod',href:nextPod(t).url,fn:()=>markPod(t)});
   if(mode!=='ai') opts.push({html:`${IC.ai} AI Tutor`,cls:'btn btn-primary',href:'https://chatgpt.com/?q='+encodeURIComponent(promptFor(t)),fn:()=>logAI(t)});
+  if(!t.custom) opts.push({html:`${IC.radio} Radio`,cls:'btn btn-radio',fn:()=>{menu.hidden=true;openRadio(t);}});
   if(t.quiz) opts.push({html:`${IC.quiz} Quiz`,cls:'btn btn-quiz',fn:()=>{menu.hidden=true;openQuiz(t);}});
   opts.forEach(o=>{
     let el;
@@ -1280,6 +1295,7 @@ function card(t){
         <a class="btn btn-primary" data-act="start" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener">${IC.ai} AI Tutor</a>
       </div>
       ${PODS[t.id]?`<div class="actions" style="margin-top:8px"><a class="btn btn-pod" data-act="pod" href="${esc(nextPod(t).url)}" target="_blank" rel="noopener">${IC.pod} Podcast</a></div>`:''}
+      ${t.custom?'':`<div class="actions" style="margin-top:8px"><button class="btn btn-radio" data-act="radio">${IC.radio} Radio</button></div>`}
       ${FC[t.id]?`<div class="actions" style="margin-top:8px"><button class="btn btn-cards" data-act="cards">${IC.fc} Flashcards</button></div>`:''}
       ${t.quiz?`<hr class="asep"><div class="actions"><button class="btn btn-quiz" data-act="quiz">${IC.quiz} Quiz</button></div>`:''}
       ${t.custom?'<button class="delT" data-act="del">Delete this item</button>':''}
@@ -1291,6 +1307,7 @@ function card(t){
   el.querySelector('[data-act="start"]').addEventListener('click',()=>logAI(t));
   const pb=el.querySelector('[data-act="pod"]'); if(pb) pb.addEventListener('click',()=>markPod(t));
   const cb=el.querySelector('[data-act="cards"]'); if(cb) cb.addEventListener('click',()=>openCards(t));
+  const rb=el.querySelector('[data-act="radio"]'); if(rb) rb.addEventListener('click',()=>openRadio(t));
   const qb=el.querySelector('[data-act="quiz"]'); if(qb) qb.addEventListener('click',()=>openQuiz(t));
   const db=el.querySelector('[data-act="del"]'); if(db) db.addEventListener('click',()=>{
     confirmSheet('The item “'+t.name+'” and its progress will be deleted.',()=>{
@@ -1327,6 +1344,100 @@ function stats(){
   $('#stat-sessions').textContent=sessions;
   $('#stat-left').textContent=Math.round(minsLeft/60)+' h';
   $('#totalbar').innerHTML=`<div class="seg-solid" style="width:${solid.length/total*100}%"></div><div class="seg-prog" style="width:${prog.length/total*100}%"></div>`;
+}
+
+/* ================= radio ================= */
+const GENRES=[
+ ['acoustic','Acoustic','Clearest vocals — best for learning'],
+ ['pop','Latin Pop','Soft and clear'],
+ ['corrido','Corrido','Mexican storytelling'],
+ ['bolero','Bolero','Slow and warm'],
+];
+let RAD=null, radTimer=null;
+function teachFor(t){
+  const deck=FC[t.id]||[];
+  return deck.filter(c=>!c[0]).map(c=>c[2]).join('\n').slice(0,1100) || t.why || '';
+}
+function closeRadio(){ clearTimeout(radTimer); radTimer=null; RAD=null; $('#radioOverlay').classList.remove('show'); }
+function openRadio(t){
+  if(!SYNC){ toast('Radio needs the family server — finish the Cloudflare setup first'); return; }
+  clearTimeout(radTimer); RAD={t,awarded:false};
+  const starred=Object.entries(P().stars||{}).filter(([k,s])=>!s.del&&s.tid===t.id);
+  $('#radioSheet').innerHTML=`
+    <div class="sheet-head"><h3 class="sheet-title display">${IC.radio} Radio</h3>
+      <button class="btn btn-secondary" id="radClose" style="flex:none;padding:9px 16px">Close</button></div>
+    <p class="modal-hint">A song written for <b>${esc(t.name)}</b> — pick a style. All are tuned for clear, easy-to-follow vocals.</p>
+    ${starred.length?`<div class="startmenu" style="margin-top:14px">
+      ${starred.map(([k,s])=>`<button class="btn btn-primary" data-star="${esc(k)}">★ ${esc(s.title)}<span class="genre-sub">${esc((GENRES.find(g=>g[0]===s.genre)||['',s.genre])[1])}</span></button>`).join('')}
+    </div>`:''}
+    <div class="startmenu" style="margin-top:${starred.length?'8px':'14px'}">
+      ${GENRES.map(g=>`<button class="btn btn-radio" data-genre="${g[0]}" style="flex-direction:column;align-items:center">${esc(g[1])}<span class="genre-sub">${esc(g[2])}</span></button>`).join('')}
+    </div>`;
+  $('#radClose').addEventListener('click',closeRadio);
+  document.querySelectorAll('#radioSheet [data-genre]').forEach(b=>b.addEventListener('click',()=>radioPick(b.dataset.genre)));
+  document.querySelectorAll('#radioSheet [data-star]').forEach(b=>b.addEventListener('click',()=>{
+    const s=(P().stars||{})[b.dataset.star]; if(!s) return;
+    RAD.genre=s.genre; radioPlayer(s);
+  }));
+  $('#radioOverlay').classList.add('show');
+}
+function radioStatus(msg){
+  const el=$('#radStatus'); if(el){ el.textContent=msg; return; }
+  $('#radioSheet').innerHTML=`
+    <div class="sheet-head"><h3 class="sheet-title display">${IC.radio} ${esc(RAD.t.name)}</h3>
+      <button class="btn btn-secondary" id="radClose" style="flex:none;padding:9px 16px">Close</button></div>
+    <p class="radio-status" id="radStatus">${esc(msg)}</p>`;
+  $('#radClose').addEventListener('click',closeRadio);
+}
+function radioPick(genre){
+  RAD.genre=genre;
+  radioStatus('🎶 Writing and recording your song… usually under a minute.');
+  radioPoll();
+}
+async function radioPoll(){
+  if(!RAD||!RAD.genre) return;
+  try{
+    const r=await fetch(SYNC+'/song',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tid:RAD.t.id,topic:RAD.t.name,teach:teachFor(RAD.t),genre:RAD.genre})});
+    const d=await r.json();
+    if(!RAD) return;
+    if(d.status==='ready'){ radioPlayer(d); return; }
+    if(d.status==='unconfigured'){ radioStatus('The server is missing its music API key (EVOLINK_API_KEY).'); return; }
+    if(d.status==='failed'){ radioStatus('Generation failed — try again or pick another style.'); return; }
+    radTimer=setTimeout(radioPoll,5000);
+  }catch(e){ radTimer=setTimeout(radioPoll,8000); }
+}
+function radioPlayer(d){
+  const t=RAD.t;
+  const skey=t.id+'|'+RAD.genre;
+  const isStarred=()=>{ const s=(P().stars||{})[skey]; return !!(s&&!s.del); };
+  $('#radioSheet').innerHTML=`
+    <div class="sheet-head"><h3 class="sheet-title display">${IC.radio} ${esc(d.title||t.name)}</h3>
+      <button class="btn btn-secondary" id="radClose" style="flex:none;padding:9px 16px">Close</button></div>
+    <audio controls preload="auto" src="${esc(d.url)}"></audio>
+    ${d.lyrics?`<div class="radio-lyrics">${esc(d.lyrics)}</div>`:''}
+    <div class="actions" style="margin-top:14px">
+      <button class="btn btn-pod" id="radStar">${isStarred()?'★ Starred':'☆ Star this song'}</button>
+      <button class="btn btn-radio" id="radOther">Another style</button>
+    </div>`;
+  $('#radClose').addEventListener('click',closeRadio);
+  $('#radOther').addEventListener('click',()=>openRadio(t));
+  $('#radStar').addEventListener('click',()=>{
+    P().stars=P().stars||{};
+    const cur=P().stars[skey];
+    if(cur&&!cur.del){ cur.del=Date.now(); cur.u=Date.now(); toast('Removed from rotation'); }
+    else { P().stars[skey]={tid:t.id,genre:RAD.genre,url:d.url,title:d.title||t.name,lyrics:d.lyrics||'',u:Date.now()}; toast('★ Kept in rotation for this topic'); }
+    save();
+    $('#radStar').textContent=isStarred()?'★ Starred':'☆ Star this song';
+  });
+  const au=$('#radioSheet audio');
+  au.addEventListener('play',()=>{
+    if(RAD&&!RAD.awarded){ RAD.awarded=true;
+      const x=st(t.id); if(x.status==='none') x.status='progress';
+      touch(x); award(15); save(); refresh(t);
+      toast('+15 XP — canta con la letra 🎶');
+    }
+  });
 }
 
 /* ================= flashcards ================= */
