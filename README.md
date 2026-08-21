@@ -35,24 +35,14 @@ The app is a single static file: [`index.html`](index.html), served with GitHub 
 
    Wrangler prints your Worker URL, e.g. `https://habla-sync.<your-subdomain>.workers.dev`.
 
-   **Optional — AI content generation for Added Items**: give the Worker an
-   Anthropic API key (get one at https://console.anthropic.com) so that adding
-   a weak spot in the app auto-generates its description, example, tutor
-   instructions, and a real 5-question quiz:
-
-   ```bash
-   wrangler secret put ANTHROPIC_API_KEY
-   ```
-
-   (paste the key when prompted; it is stored encrypted on Cloudflare, never in git)
-
-   **Optional — Radio (AI learning songs)**: the EvoLink key enables `/song`
-   (Claude writes rhyming topic lyrics, Suno sings them). Ethan's key is in the
-   macOS Keychain; deploy it with:
+   **One secret powers everything** (Claude via EvoLink's Anthropic-compatible
+   endpoint, plus Suno music for Radio). Ethan's key lives in the macOS Keychain:
 
    ```bash
    security find-generic-password -a habla -s evolink-api-key -w | wrangler secret put EVOLINK_API_KEY
    ```
+
+   (The family sync key is also in the Keychain: service `habla-sync-key`.)
 
 4. Invent a long random family key (this is effectively the password —
    anyone with the full URL can read/write the progress data):

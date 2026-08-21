@@ -14,8 +14,8 @@
  * (e.g. `openssl rand -hex 16`). Anyone with the full URL can read/write,
  * so treat the URL like a shared family password.
  *
- * Secrets: `wrangler secret put ANTHROPIC_API_KEY` enables /generate and /song lyrics;
- *          `wrangler secret put EVOLINK_API_KEY` enables /song music generation.
+ * Secrets: `wrangler secret put EVOLINK_API_KEY` — one key powers everything:
+ *          Claude (via EvoLink's Anthropic-compatible endpoint) and Suno music.
  */
 
 const GENRE_STYLES = {
@@ -47,10 +47,11 @@ function findAudioUrl(o) {
 }
 
 async function claudeJson(env, prompt, maxTokens) {
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  // Claude via EvoLink's Anthropic-compatible endpoint — same key as music generation
+  const r = await fetch('https://direct.evolink.ai/v1/messages', {
     method: 'POST',
     headers: {
-      'x-api-key': env.ANTHROPIC_API_KEY,
+      'Authorization': 'Bearer ' + env.EVOLINK_API_KEY,
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
     },
@@ -98,7 +99,7 @@ export default {
     }
 
     if (req.method === 'POST' && op === 'generate') {
-      if (!env.ANTHROPIC_API_KEY) {
+      if (!env.EVOLINK_API_KEY) {
         return new Response('generation not configured', { status: 501, headers: cors });
       }
       let body;
@@ -124,25 +125,8 @@ Return ONLY a JSON object, no markdown fences, with exactly these fields:
 }
 Rules: every quiz answer must be unambiguously correct for Mexican Spanish; distractors must be plausible learner mistakes; vary which position (0-3) holds the correct answer across the 10 questions.`;
 
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 3500,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      });
-      if (!r.ok) return new Response('llm error', { status: 502, headers: cors });
-      const data = await r.json();
-      let txt = (data.content && data.content[0] && data.content[0].text) || '';
-      txt = txt.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-      let g;
-      try { g = JSON.parse(txt); } catch { return new Response('bad llm json', { status: 502, headers: cors }); }
+      const g = await claudeJson(env, prompt, 3500);
+      if (!g) return new Response('llm error', { status: 502, headers: cors });
       if (!g || !Array.isArray(g.quiz)) return new Response('bad content', { status: 502, headers: cors });
       g.quiz = g.quiz
         .filter(q => Array.isArray(q) && q.length >= 4 && typeof q[0] === 'string'
@@ -157,7 +141,7 @@ Rules: every quiz answer must be unambiguously correct for Mexican Spanish; dist
 
     if (req.method === 'POST' && op === 'song') {
       const jcors = { ...cors, 'Content-Type': 'application/json' };
-      if (!env.ANTHROPIC_API_KEY || !env.EVOLINK_API_KEY) {
+      if (!env.EVOLINK_API_KEY) {
         return new Response(JSON.stringify({ status: 'unconfigured' }), { status: 501, headers: jcors });
       }
       let body;
