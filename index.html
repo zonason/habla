@@ -1192,7 +1192,7 @@ function renderStart(){
   if(FC[t.id]&&mode!=='fc') opts.push({html:`${IC.fc} Flashcards`,cls:'btn btn-cards',fn:()=>{menu.hidden=true;openCards(t);}});
   if(PODS[t.id]&&mode!=='pod') opts.push({html:`${IC.pod} Podcast`,cls:'btn btn-pod',href:nextPod(t).url,fn:()=>markPod(t)});
   if(mode!=='ai') opts.push({html:`${IC.ai} AI Tutor`,cls:'btn btn-primary',href:'https://chatgpt.com/?q='+encodeURIComponent(promptFor(t)),fn:()=>logAI(t)});
-  if(!t.custom) opts.push({html:`${IC.radio} Radio`,cls:'btn btn-radio',fn:()=>{menu.hidden=true;openRadio(t);}});
+  opts.push({html:`${IC.radio} Radio`,cls:'btn btn-radio',fn:()=>{menu.hidden=true;openRadio(t);}});
   if(t.quiz) opts.push({html:`${IC.quiz} Quiz`,cls:'btn btn-quiz',fn:()=>{menu.hidden=true;openQuiz(t);}});
   opts.forEach(o=>{
     let el;
@@ -1295,7 +1295,7 @@ function card(t){
         <a class="btn btn-primary" data-act="start" href="https://chatgpt.com/?q=${encodeURIComponent(promptFor(t))}" target="_blank" rel="noopener">${IC.ai} AI Tutor</a>
       </div>
       ${PODS[t.id]?`<div class="actions" style="margin-top:8px"><a class="btn btn-pod" data-act="pod" href="${esc(nextPod(t).url)}" target="_blank" rel="noopener">${IC.pod} Podcast</a></div>`:''}
-      ${t.custom?'':`<div class="actions" style="margin-top:8px"><button class="btn btn-radio" data-act="radio">${IC.radio} Radio</button></div>`}
+      ${t.custom?`<div class="actions" style="margin-top:8px"><button class="btn btn-radio" data-act="radio">${IC.radio} Radio</button></div>`:''}
       ${FC[t.id]?`<div class="actions" style="margin-top:8px"><button class="btn btn-cards" data-act="cards">${IC.fc} Flashcards</button></div>`:''}
       ${t.quiz?`<hr class="asep"><div class="actions"><button class="btn btn-quiz" data-act="quiz">${IC.quiz} Quiz</button></div>`:''}
       ${t.custom?'<button class="delT" data-act="del">Delete this item</button>':''}
@@ -1352,6 +1352,8 @@ const GENRES=[
  ['pop','Latin Pop','Soft and clear'],
  ['corrido','Corrido','Mexican storytelling'],
  ['bolero','Bolero','Slow and warm'],
+ ['synthwave','Synthwave','Retro synths, vocals up front'],
+ ['country','Country','Slow storytelling, easy to follow'],
 ];
 let RAD=null, radTimer=null;
 function teachFor(t){

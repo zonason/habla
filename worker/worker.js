@@ -23,6 +23,8 @@ const GENRE_STYLES = {
   pop:      'soft latin pop, slow tempo, bright very clear vocals, simple clean arrangement, gentle beat',
   corrido:  'mexican corrido, acoustic guitars and bajo sexto, relaxed tempo, clear storytelling vocals, traditional',
   bolero:   'romantic bolero, soft guitar trio, very slow, warm clear vocals, intimate',
+  synthwave:'synthwave, retro 80s synth-pop, relaxed tempo, clear prominent vocals mixed up front, spacious airy mix',
+  country:  'country ballad, acoustic guitar and gentle pedal steel, slow tempo, very clear storytelling vocals',
 };
 const NEGATIVE_TAGS = 'fast rap, shouting, heavy metal, distortion, mumbling, autotune, dense mix';
 
