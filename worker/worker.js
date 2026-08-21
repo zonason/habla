@@ -46,7 +46,7 @@ function findAudioUrl(o) {
   return found;
 }
 
-async function claudeJson(env, prompt, maxTokens) {
+async function claudeJson(env, prompt, maxTokens, model) {
   // Claude via EvoLink's Anthropic-compatible endpoint — same key as music generation
   const r = await fetch('https://direct.evolink.ai/v1/messages', {
     method: 'POST',
@@ -56,7 +56,7 @@ async function claudeJson(env, prompt, maxTokens) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
+      model: model || 'claude-haiku-4-5-20251001',
       max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -197,13 +197,34 @@ Rules: every quiz answer must be unambiguously correct for Mexican Spanish; dist
         return new Response(JSON.stringify({ status: 'pending' }), { headers: jcors });
       }
 
-      // new song: Claude writes the lyrics, then Suno (via EvoLink) sings them
-      const lyr = await claudeJson(env, `Write a short Spanish learning song for an A2-level adult learner. Topic: ${topic}.
-Key teaching content to weave in:
+      // new song: Claude writes bilingual drill lyrics, then Suno (via EvoLink) sings them
+      const lyr = await claudeJson(env, `Write song lyrics that TEACH Spanish to an English-speaking A2 learner. Topic: ${topic}.
+
+Teaching content the lyrics must actually drill:
 ${teach}
 
-Requirements: rhyming lines; a simple, extremely repetitive chorus that drills the topic's key forms (repetition aids memory); verses that use the forms in everyday Mexican-life sentences; Mexican Spanish; total 12-20 short lines; format with [Verse 1], [Chorus], [Verse 2], [Chorus] tags.
-Return ONLY JSON, no fences: {"title":"short Spanish title (max 60 chars)","lyrics":"the tagged lyrics with \\n line breaks"}`, 1200);
+STYLE MODEL — follow this pattern precisely. Bilingual drill lyrics: every Spanish form is glossed in English in the same line, forms are walked through systematically, lines rhyme and are short and singable:
+
+[Verse]
+Yo hago, I do, I make,
+Yo hago un pastel, a cake I bake.
+Tú haces, you do, él hace too,
+Hacemos, hacen — that's what we do.
+Yo hice, I did, tú hiciste it right,
+Él hizo, hicimos, hicieron that night.
+
+[Hook]
+Hago, digo, doy, pongo, puedo, salgo!
+I do, I say, I give, I put, I can, I go!
+
+HARD RULES:
+- NEVER pad lines by repeating the topic's name — every line must teach: a real Spanish form or rule from the teaching content, immediately glossed in English.
+- Interleave: Spanish first, English meaning right after, in the same line.
+- Walk the paradigm systematically (yo/tú/él/nosotros/ellos, or the rule's contrasting cases) with tiny example sentences from everyday Mexican life.
+- End with a [Hook] that chains the key forms as a memorable list with English glosses, like the model above.
+- Rhyme. Short lines. 24-40 lines total. [Verse]/[Chorus]/[Hook] tags. Mexican Spanish (no vosotros).
+
+Return ONLY JSON, no fences: {"title":"short Spanish title (max 60 chars)","lyrics":"the tagged lyrics with \\n line breaks"}`, 2500, 'claude-sonnet-4-5-20250929');
       if (!lyr || !lyr.lyrics) return new Response(JSON.stringify({ status: 'failed' }), { headers: jcors });
 
       const gen = await fetch('https://api.evolink.ai/v1/audios/generations', {
