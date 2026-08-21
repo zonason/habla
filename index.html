@@ -1192,7 +1192,6 @@ function renderStart(){
   if(FC[t.id]&&mode!=='fc') opts.push({html:`${IC.fc} Flashcards`,cls:'btn btn-cards',fn:()=>{menu.hidden=true;openCards(t);}});
   if(PODS[t.id]&&mode!=='pod') opts.push({html:`${IC.pod} Podcast`,cls:'btn btn-pod',href:nextPod(t).url,fn:()=>markPod(t)});
   if(mode!=='ai') opts.push({html:`${IC.ai} AI Tutor`,cls:'btn btn-primary',href:'https://chatgpt.com/?q='+encodeURIComponent(promptFor(t)),fn:()=>logAI(t)});
-  opts.push({html:`${IC.radio} Radio`,cls:'btn btn-radio',fn:()=>{menu.hidden=true;openRadio(t);}});
   if(t.quiz) opts.push({html:`${IC.quiz} Quiz`,cls:'btn btn-quiz',fn:()=>{menu.hidden=true;openQuiz(t);}});
   opts.forEach(o=>{
     let el;
@@ -1202,6 +1201,12 @@ function renderStart(){
     el.addEventListener('click',o.fn);
     menu.appendChild(el);
   });
+  const sep=document.createElement('hr'); sep.className='asep'; sep.style.margin='6px 0'; sep.style.width='100%';
+  menu.appendChild(sep);
+  const rb=document.createElement('button');
+  rb.className='btn btn-radio'; rb.innerHTML=`${IC.radio} Radio`;
+  rb.addEventListener('click',()=>{ menu.hidden=true; openRadio(t); });
+  menu.appendChild(rb);
   row.appendChild(a); row.appendChild(dd);
   wrap.appendChild(row); wrap.appendChild(menu);
 }
