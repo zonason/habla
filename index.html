@@ -266,6 +266,7 @@
     </div>
     <div class="totalbar" id="totalbar" role="img" aria-label="Progreso total"></div>
     <div id="startWrap"></div>
+    <div id="srsWrap"></div>
   </header>
 
   <main id="phases"></main>
@@ -679,13 +680,19 @@ function mergeDB(a,b){
       const ra=(pa.stars||{})[k], rb=(pb.stars||{})[k];
       stars[k]=!ra?rb:!rb?ra:((rb.u||0)>(ra.u||0)?rb:ra);
     });
+    const srs={};
+    new Set([...Object.keys(pa.srs||{}),...Object.keys(pb.srs||{})]).forEach(k=>{
+      const ra=(pa.srs||{})[k], rb=(pb.srs||{})[k];
+      const pick=!ra?rb:!rb?ra:((rb.u||0)>(ra.u||0)?rb:ra);
+      if(pick&&(pick.u||0)>=reset) srs[k]=pick;
+    });
     // profile-level fields honor the reset stamp so a sync merge can't resurrect wiped XP/streak
     const va=(pa.xpTs||0)>=reset, vb=(pb.xpTs||0)>=reset;
     const rd=reset?(d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'))(new Date(reset)):'';
     const act=Object.fromEntries(Object.entries(Object.assign({},pa.act||{},pb.act||{})).filter(([d])=>d>=rd));
     const lastCands=[pa.last,pb.last].filter(l=>l&&(l.ts||0)>=reset);
     const last=lastCands.sort((x,y)=>(y.ts||0)-(x.ts||0))[0]||null;
-    out.profiles[pid]={name:pb.name||pa.name,topics,custom,stars,reset,
+    out.profiles[pid]={name:pb.name||pa.name,topics,custom,stars,srs,reset,
       xp:Math.max(va?(pa.xp||0):0, vb?(pb.xp||0):0),
       xpTs:Math.max(va?(pa.xpTs||0):0, vb?(pb.xpTs||0):0),
       act,
@@ -1224,6 +1231,7 @@ const phaseOpen={};  // per-session manual overrides
 function render(){
   renderDuel();
   renderStart();
+  renderSRS();
   const root=$('#phases'); root.innerHTML='';
   root.appendChild(customSection());
   const next=nextTopic(); const activePi=next?next.pi:-1;
@@ -1557,6 +1565,106 @@ function radioPlayer(d){
   });
 }
 
+/* ============ Smart Review: global spaced repetition over all quiz cards ============ */
+function srsCards(){
+  const out=[];
+  ALL.forEach(t=>{
+    const deck=FC[t.id]; if(!deck) return;
+    deck.forEach((c,idx)=>{ if(c[0]) out.push({tid:t.id,idx,front:c[1],back:c[2],topic:t.name}); });
+  });
+  return out;
+}
+function srsCounts(){
+  const m=P().srs||{}; const now=Date.now();
+  let due=0,fresh=0;
+  srsCards().forEach(c=>{ const r=m[c.tid+'#'+c.idx]; if(!r) fresh++; else if(r.d<=now) due++; });
+  return {due,fresh};
+}
+function renderSRS(){
+  const el=$('#srsWrap'); if(!el) return;
+  const {due,fresh}=srsCounts();
+  el.innerHTML=`<div class="actions" style="margin-top:8px"><button class="btn btn-quiz" id="srsBtn">${IC.fc} Smart Review${due?` · <b>${due} due</b>`:''}${fresh?` · ${Math.min(fresh,20)} new`:''}</button></div>`;
+  $('#srsBtn').addEventListener('click',startSRS);
+}
+let SR=null;
+function startSRS(){
+  const m=P().srs=P().srs||{}; const now=Date.now();
+  const all=srsCards();
+  let queue=all.filter(c=>{ const r=m[c.tid+'#'+c.idx]; return r&&r.d<=now; });
+  queue.sort(()=>Math.random()-.5); queue=queue.slice(0,60);
+  if(queue.length<20){
+    const fresh=all.filter(c=>!m[c.tid+'#'+c.idx]).slice(0,20-queue.length);
+    queue=queue.concat(fresh);
+  }
+  if(!queue.length){ toast('All caught up — nothing due 🎉'); return; }
+  SR={queue,i:0,rated:0,fresh:0,revealed:false};
+  $('#overlay').classList.add('show'); $('#overlay').classList.add('fs');
+  drawSRS();
+}
+function drawSRS(){
+  const c=SR.queue[SR.i];
+  $('#sheet').innerHTML=`
+    <div class="sheet-head"><h3 class="sheet-title display">${IC.fc} Smart Review</h3>
+      <span class="sheet-sub">${SR.queue.length-SR.i} left</span></div>
+    <div class="fc-card quiz">
+      <div class="fc-type">${esc(c.topic)}</div>
+      <div class="fc-front">${esc(c.front)}</div>
+      ${SR.revealed?`<div class="fc-back">${esc(fmtBack(c.back))}</div>`:''}
+    </div>
+    ${SR.revealed
+      ?`<div class="fc-nav">
+          <button id="srAgain" class="btn btn-danger">Again</button>
+          <button id="srGood" class="btn btn-cards">Good</button>
+          <button id="srEasy" class="btn btn-quiz">Easy</button>
+        </div>`
+      :`<div class="fc-nav"><button id="srShow" class="btn btn-primary">Show answer</button></div>`}
+    <div class="qnav"><button class="btn btn-secondary" id="srExit" style="flex:none;padding:10px 18px">Exit</button></div>`;
+  $('#srExit').addEventListener('click',endSRS);
+  const sh=$('#srShow'); if(sh) sh.addEventListener('click',()=>{ SR.revealed=true; drawSRS(); });
+  ['Again','Good','Easy'].forEach(g=>{
+    const b=$('#sr'+g); if(b) b.addEventListener('click',()=>rateSRS(g.toLowerCase()));
+  });
+}
+function rateSRS(g){
+  const c=SR.queue[SR.i], id=c.tid+'#'+c.idx;
+  const m=P().srs, now=Date.now();
+  const r=m[id]||(m[id]={e:2.5,i:0,d:0,n:0});
+  if(!r.n) SR.fresh++;
+  if(g==='again'){
+    r.e=Math.max(1.3,r.e-0.2); r.i=0; r.d=now+10*60000;
+    SR.queue.splice(Math.min(SR.i+3,SR.queue.length),0,c);   // comes back this session
+  }else if(g==='good'){
+    r.i=r.i?Math.min(180,Math.round(r.i*r.e*10)/10):1; r.d=now+r.i*86400000;
+  }else{
+    r.i=r.i?Math.min(180,Math.round(r.i*r.e*1.3*10)/10):3; r.e=Math.min(3,r.e+0.1); r.d=now+r.i*86400000;
+  }
+  r.n++; r.u=now; SR.rated++;
+  save();
+  SR.i++; SR.revealed=false;
+  SR.i<SR.queue.length?drawSRS():endSRS(true);
+}
+function endSRS(finished){
+  const rated=SR?SR.rated:0;
+  const xp=Math.min(40,rated*2);
+  if(rated){ award(xp); save(); }
+  if(finished===true){
+    confetti();
+    $('#sheet').innerHTML=`
+      <div class="sheet-head"><h3 class="sheet-title display">${IC.fc} Smart Review</h3></div>
+      <div class="result">
+        <div class="big display">🎉</div>
+        <div class="verdict pass">${rated} cards reviewed · +${xp} XP</div>
+        <p>Come back when more cards are due — spacing is what makes it stick.</p>
+        <button class="btn btn-secondary" id="srDone" style="margin-top:14px">Close</button>
+      </div>`;
+    $('#srDone').addEventListener('click',()=>{ $('#overlay').classList.remove('show'); $('#overlay').classList.remove('fs'); });
+  }else{
+    $('#overlay').classList.remove('show'); $('#overlay').classList.remove('fs');
+    if(rated) toast(`+${xp} XP · ${rated} cards reviewed`);
+  }
+  SR=null; renderSRS(); renderDuel();
+}
+
 /* ================= flashcards ================= */
 let FCS=null;
 function openCards(t){
@@ -1714,7 +1822,7 @@ $('#miniPlay').addEventListener('click',()=>{ radioAudio.paused?radioAudio.play(
 $('#resetBtn').addEventListener('click',()=>{
   const p=P();
   confirmSheet('This will erase all of '+p.name+"'s progress — sessions, statuses, quiz scores, XP, and streak. This cannot be undone.",()=>{
-    p.topics={}; p.xp=0; p.xpTs=0; p.act={}; p.seen=0; p.last=null; p.lastTs=0;
+    p.topics={}; p.srs={}; p.xp=0; p.xpTs=0; p.act={}; p.seen=0; p.last=null; p.lastTs=0;
     p.reset=Date.now();
     save(); render(); toast(p.name+"'s progress deleted");
   });
