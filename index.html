@@ -53,6 +53,8 @@
   /* ---------- header ---------- */
   header{padding:28px 0 8px}
   .brandrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .miniplay{flex:none;width:46px;height:46px;border-radius:99px;border:none;background:var(--rosa);color:var(--rosa-ink);cursor:pointer;box-shadow:var(--shadow);display:grid;place-items:center}
+  .miniplay:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
   .fab{position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:40;
     font:inherit;font-size:17px;font-weight:700;padding:16px 26px;border-radius:99px;border:none;
     background:var(--cobalt);color:var(--cobalt-ink);cursor:pointer;white-space:nowrap;
@@ -246,7 +248,10 @@
 
 <div class="wrap">
   <header>
-    <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
+    <div class="brandrow">
+      <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
+      <button class="miniplay" id="miniPlay" aria-label="Play/pause radio" hidden></button>
+    </div>
     <p class="tagline">Español mexicano · A2/B1 → B2</p>
     <div class="duel" id="duel"></div>
     <div class="hero-stats">
@@ -1361,6 +1366,28 @@ const GENRES=[
  ['country','Country','Slow storytelling, easy to follow'],
 ];
 let RAD=null, radTimer=null;
+const PLAY_SVG='<svg viewBox="0 0 24 24" style="width:20px;height:20px"><path d="M8 5.2v13.6L19.5 12z" fill="currentColor"/></svg>';
+const PAUSE_SVG='<svg viewBox="0 0 24 24" style="width:20px;height:20px"><rect x="6.5" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/></svg>';
+const radioAudio=new Audio();
+let RADNOW=null;   // {tid,title,t,awarded}
+function syncPlayUI(){
+  const mp=$('#miniPlay');
+  if(!RADNOW){ mp.hidden=true; }
+  else { mp.hidden=false; mp.innerHTML=radioAudio.paused?PLAY_SVG:PAUSE_SVG; }
+  const sb=$('#radPlay');
+  if(sb) sb.innerHTML=(radioAudio.paused?PLAY_SVG+' Play':PAUSE_SVG+' Pause');
+}
+radioAudio.addEventListener('play',()=>{
+  if(RADNOW&&!RADNOW.awarded){
+    RADNOW.awarded=true;
+    const x=st(RADNOW.tid); if(x.status==='none') x.status='progress';
+    touch(x); award(15); save(); if(RADNOW.t) refresh(RADNOW.t);
+    toast('+15 XP — canta con la letra 🎶');
+  }
+  syncPlayUI();
+});
+radioAudio.addEventListener('pause',syncPlayUI);
+radioAudio.addEventListener('ended',syncPlayUI);
 function teachFor(t){
   const deck=FC[t.id]||[];
   return deck.filter(c=>!c[0]).map(c=>c[2]).join('\n').slice(0,1100) || t.why || '';
@@ -1418,10 +1445,12 @@ function radioPlayer(d){
   const t=RAD.t;
   const skey=t.id+'|'+RAD.genre;
   const isStarred=()=>{ const s=(P().stars||{})[skey]; return !!(s&&!s.del); };
+  if(radioAudio.src!==d.url){ radioAudio.src=d.url; }
+  RADNOW={tid:t.id,title:d.title||t.name,t,awarded:RADNOW&&RADNOW.tid===t.id?RADNOW.awarded:false};
   $('#radioSheet').innerHTML=`
     <div class="sheet-head"><h3 class="sheet-title display">${IC.radio} ${esc(d.title||t.name)}</h3>
       <button class="btn btn-secondary" id="radClose" style="flex:none;padding:9px 16px">Close</button></div>
-    <audio controls preload="auto" src="${esc(d.url)}"></audio>
+    <div class="actions" style="margin-top:16px"><button class="btn btn-primary" id="radPlay"></button></div>
     ${d.lyrics?`<div class="radio-lyrics">${esc(d.lyrics)}</div>`:''}
     <div class="actions" style="margin-top:14px">
       <button class="btn btn-pod" id="radStar">${isStarred()?'★ Starred':'☆ Star this song'}</button>
@@ -1429,6 +1458,8 @@ function radioPlayer(d){
     </div>`;
   $('#radClose').addEventListener('click',closeRadio);
   $('#radOther').addEventListener('click',()=>openRadio(t));
+  $('#radPlay').addEventListener('click',()=>{ radioAudio.paused?radioAudio.play():radioAudio.pause(); });
+  syncPlayUI();
   $('#radStar').addEventListener('click',()=>{
     P().stars=P().stars||{};
     const cur=P().stars[skey];
@@ -1436,14 +1467,6 @@ function radioPlayer(d){
     else { P().stars[skey]={tid:t.id,genre:RAD.genre,url:d.url,title:d.title||t.name,lyrics:d.lyrics||'',u:Date.now()}; toast('★ Kept in rotation for this topic'); }
     save();
     $('#radStar').textContent=isStarred()?'★ Starred':'☆ Star this song';
-  });
-  const au=$('#radioSheet audio');
-  au.addEventListener('play',()=>{
-    if(RAD&&!RAD.awarded){ RAD.awarded=true;
-      const x=st(t.id); if(x.status==='none') x.status='progress';
-      touch(x); award(15); save(); refresh(t);
-      toast('+15 XP — canta con la letra 🎶');
-    }
   });
 }
 
@@ -1599,6 +1622,8 @@ function toast(msg){
   const el=$('#toast'); el.textContent=msg; el.classList.add('show');
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),3200);
 }
+$('#miniPlay').addEventListener('click',()=>{ radioAudio.paused?radioAudio.play():radioAudio.pause(); });
+
 $('#resetBtn').addEventListener('click',()=>{
   const p=P();
   confirmSheet('This will erase all of '+p.name+"'s progress — sessions, statuses, quiz scores, XP, and streak. This cannot be undone.",()=>{
