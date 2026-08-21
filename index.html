@@ -55,6 +55,14 @@
   .brandrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
   .miniplay{flex:none;width:46px;height:46px;border-radius:99px;border:none;background:var(--rosa);color:var(--rosa-ink);cursor:pointer;box-shadow:var(--shadow);display:grid;place-items:center}
   .miniplay:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .srstop{width:auto;min-width:46px;padding:0 16px;display:flex;align-items:center;gap:7px;font:inherit;font-weight:800;font-size:15.5px;background:var(--cobalt-soft);color:var(--cobalt);box-shadow:var(--shadow)}
+  .radiobar{position:fixed;left:0;right:0;bottom:0;z-index:45;display:flex;align-items:center;gap:12px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--card-edge);box-shadow:0 -2px 14px rgba(0,0,0,.18)}
+  .rb-btn{width:44px;height:44px;border-radius:99px;border:none;background:var(--rosa);color:var(--rosa-ink);display:grid;place-items:center;cursor:pointer;flex:none}
+  .rb-btn:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+  .rb-exp{background:var(--track);color:var(--ink);font-size:15px}
+  .rb-title{flex:1;min-width:0;font-weight:700;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body.radio-on .fab{bottom:calc(84px + env(safe-area-inset-bottom))}
+  body.radio-on{padding-bottom:180px}
   .fab{position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:40;
     font:inherit;font-size:17px;font-weight:700;padding:16px 26px;border-radius:99px;border:none;
     background:var(--cobalt);color:var(--cobalt-ink);cursor:pointer;white-space:nowrap;
@@ -254,7 +262,7 @@
   <header>
     <div class="brandrow">
       <h1 class="wordmark display">HABLA<span class="dot">.</span></h1>
-      <button class="miniplay" id="miniPlay" aria-label="Play/pause radio" hidden></button>
+      <button class="miniplay srstop" id="srsTop" aria-label="Smart Review"></button>
     </div>
     <p class="tagline">Español mexicano · A2/B1 → B2</p>
     <div class="duel" id="duel"></div>
@@ -262,11 +270,10 @@
       <div class="stat"><b id="stat-solid">0%</b><span>Sólido</span></div>
       <div class="stat"><b id="stat-topics">0/31</b><span>Temas</span></div>
       <div class="stat"><b id="stat-sessions">0</b><span>Sesiones</span></div>
-      <div class="stat"><b id="stat-left">—</b><span>Horas rest.</span></div>
+      <div class="stat"><b id="stat-left">—</b><span>Horas</span></div>
     </div>
     <div class="totalbar" id="totalbar" role="img" aria-label="Progreso total"></div>
     <div id="startWrap"></div>
-    <div id="srsWrap"></div>
   </header>
 
   <main id="phases"></main>
@@ -287,6 +294,11 @@
   </div>
 </div>
 <button class="fab" id="addItemBtn">+ Add Item</button>
+<div class="radiobar" id="radioBar" hidden>
+  <button class="rb-btn" id="rbPlay" aria-label="Play/pause"></button>
+  <div class="rb-title" id="rbTitle"></div>
+  <button class="rb-btn rb-exp" id="rbExpand" aria-label="Show lyrics">▲</button>
+</div>
 <div class="overlay" id="addOverlay" role="dialog" aria-modal="true" aria-label="Nuevo tema">
   <div class="sheet tall">
     <div class="sheet-head"><h3 class="sheet-title display">Add Item</h3></div>
@@ -1364,7 +1376,8 @@ function stats(){
   $('#stat-solid').textContent=Math.round(solid.length/total*100)+'%';
   $('#stat-topics').textContent=solid.length+'/'+total;
   $('#stat-sessions').textContent=sessions;
-  $('#stat-left').textContent=Math.round(minsLeft/60)+' h';
+  const hrsLeft=Math.round(minsLeft/60);
+  $('#stat-left').textContent=hrsLeft>99?String(hrsLeft):hrsLeft+' h';
   $('#totalbar').innerHTML=`<div class="seg-solid" style="width:${solid.length/total*100}%"></div><div class="seg-prog" style="width:${prog.length/total*100}%"></div>`;
 }
 
@@ -1383,9 +1396,13 @@ const PAUSE_SVG='<svg viewBox="0 0 24 24" style="width:20px;height:20px"><rect x
 const radioAudio=new Audio();
 let RADNOW=null;   // {tid,title,t,awarded}
 function syncPlayUI(){
-  const mp=$('#miniPlay');
-  if(!RADNOW){ mp.hidden=true; }
-  else { mp.hidden=false; mp.innerHTML=radioAudio.paused?PLAY_SVG:PAUSE_SVG; }
+  const bar=$('#radioBar');
+  if(!RADNOW){ bar.hidden=true; document.body.classList.remove('radio-on'); }
+  else{
+    bar.hidden=false; document.body.classList.add('radio-on');
+    $('#rbTitle').textContent=RADNOW.title;
+    $('#rbPlay').innerHTML=radioAudio.paused?PLAY_SVG:PAUSE_SVG;
+  }
   const sb=$('#radPlay');
   if(sb) sb.innerHTML=(radioAudio.paused?PLAY_SVG+' Play':PAUSE_SVG+' Pause');
 }
@@ -1411,7 +1428,7 @@ function playTrack(){
   const tr=RQ.tracks[RQ.i];
   const t=ALL.find(x=>x.id===tr.tid)||{id:tr.tid,name:tr.title};
   radioAudio.src=tr.url;
-  RADNOW={tid:tr.tid,title:tr.title,t,awarded:RQ.i>0};
+  RADNOW={tid:tr.tid,title:tr.title,t,awarded:RQ.i>0,data:tr,genre:RQ.genre};
   radioAudio.play().catch(()=>{});
   if(RAD&&RAD.view==='np') renderNowPlaying();
   else syncPlayUI();
@@ -1541,7 +1558,7 @@ function radioPlayer(d){
   const skey=t.id+'|'+RAD.genre;
   const isStarred=()=>{ const s=(P().stars||{})[skey]; return !!(s&&!s.del); };
   if(radioAudio.src!==d.url){ radioAudio.src=d.url; }
-  RADNOW={tid:t.id,title:d.title||t.name,t,awarded:RADNOW&&RADNOW.tid===t.id?RADNOW.awarded:false};
+  RADNOW={tid:t.id,title:d.title||t.name,t,awarded:RADNOW&&RADNOW.tid===t.id?RADNOW.awarded:false,data:d,genre:RAD.genre};
   $('#radioSheet').innerHTML=`
     <div class="sheet-head"><h3 class="sheet-title display">${IC.radio} ${esc(d.title||t.name)}</h3>
       <button class="btn btn-secondary" id="radClose" style="flex:none;padding:9px 16px">Close</button></div>
@@ -1581,10 +1598,10 @@ function srsCounts(){
   return {due,fresh};
 }
 function renderSRS(){
-  const el=$('#srsWrap'); if(!el) return;
-  const {due,fresh}=srsCounts();
-  el.innerHTML=`<div class="actions" style="margin-top:8px"><button class="btn btn-quiz" id="srsBtn">${IC.fc} Smart Review${due?` · <b>${due} due</b>`:''}${fresh?` · ${Math.min(fresh,20)} new`:''}</button></div>`;
-  $('#srsBtn').addEventListener('click',startSRS);
+  const el=$('#srsTop'); if(!el) return;
+  const {due}=srsCounts();
+  el.innerHTML=`${IC.fc}${due?` ${due}`:''}`;
+  el.title=due?due+' cards due':'Smart Review';
 }
 let SR=null;
 function startSRS(){
@@ -1817,7 +1834,16 @@ function toast(msg){
   const el=$('#toast'); el.textContent=msg; el.classList.add('show');
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),3200);
 }
-$('#miniPlay').addEventListener('click',()=>{ radioAudio.paused?radioAudio.play():radioAudio.pause(); });
+$('#srsTop').addEventListener('click',startSRS);
+$('#rbPlay').addEventListener('click',()=>{ radioAudio.paused?radioAudio.play():radioAudio.pause(); });
+$('#rbExpand').addEventListener('click',()=>{
+  if(!RADNOW) return;
+  const t=(RADNOW.t&&RADNOW.t.name)?RADNOW.t:(ALL.find(x=>x.id===RADNOW.tid)||{id:RADNOW.tid,name:RADNOW.title});
+  RAD={t,awarded:true,scope:(RAD&&RAD.scope)||'topic',genre:RADNOW.genre,view:null};
+  if(RQ){ RAD.view='np'; renderNowPlaying(); }
+  else if(RADNOW.data) radioPlayer(RADNOW.data);
+  $('#radioOverlay').classList.add('show');
+});
 
 $('#resetBtn').addEventListener('click',()=>{
   const p=P();
