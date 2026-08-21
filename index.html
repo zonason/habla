@@ -1622,7 +1622,10 @@ function drawSRS(){
   const c=SR.queue[SR.i];
   $('#sheet').innerHTML=`
     <div class="sheet-head"><h3 class="sheet-title display">${IC.fc} Smart Review</h3>
-      <span class="sheet-sub">${SR.queue.length-SR.i} left</span></div>
+      <span style="display:flex;align-items:center;gap:12px;flex:none">
+        <span class="sheet-sub">${SR.queue.length-SR.i} left</span>
+        <button class="btn btn-secondary" id="srExit" style="flex:none;padding:9px 16px">Exit</button>
+      </span></div>
     <div class="fc-card quiz">
       <div class="fc-type">${esc(c.topic)}</div>
       <div class="fc-front">${esc(c.front)}</div>
@@ -1634,8 +1637,7 @@ function drawSRS(){
           <button id="srGood" class="btn btn-cards">Good</button>
           <button id="srEasy" class="btn btn-quiz">Easy</button>
         </div>`
-      :`<div class="fc-nav"><button id="srShow" class="btn btn-primary">Show answer</button></div>`}
-    <div class="qnav"><button class="btn btn-secondary" id="srExit" style="flex:none;padding:10px 18px">Exit</button></div>`;
+      :`<div class="fc-nav"><button id="srShow" class="btn btn-primary">Show answer</button></div>`}`;
   $('#srExit').addEventListener('click',endSRS);
   const sh=$('#srShow'); if(sh) sh.addEventListener('click',()=>{ SR.revealed=true; drawSRS(); });
   ['Again','Good','Easy'].forEach(g=>{
