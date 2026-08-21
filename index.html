@@ -168,6 +168,10 @@
   .btn-danger{background:var(--wrong);color:#fff}
   .btn-pod{background:var(--gold-soft);color:var(--gold)}
   .btn-radio{background:var(--rosa-soft);color:var(--rosa)}
+  .btn-radio.has-song{background:var(--rosa);color:var(--rosa-ink)}
+  .rscope{display:flex;gap:8px;margin-top:14px}
+  .rscope button{flex:1;font:inherit;font-size:14px;font-weight:700;padding:10px;border-radius:10px;border:1.5px solid var(--card-edge);background:none;color:var(--muted);cursor:pointer}
+  .rscope button.on{background:var(--cobalt-soft);color:var(--cobalt);border-color:transparent}
   .genre-sub{display:block;font-size:12.5px;font-weight:600;opacity:.75;margin-top:2px}
   .radio-lyrics{white-space:pre-wrap;font-size:15.5px;line-height:1.6;margin-top:14px;background:var(--track);border-radius:10px;padding:14px;max-height:38vh;overflow-y:auto}
   .radio-status{text-align:center;color:var(--muted);font-size:15px;margin-top:22px}
@@ -1387,7 +1391,55 @@ radioAudio.addEventListener('play',()=>{
   syncPlayUI();
 });
 radioAudio.addEventListener('pause',syncPlayUI);
-radioAudio.addEventListener('ended',syncPlayUI);
+let RQ=null;   // global playlist {tracks,i,genre}
+radioAudio.addEventListener('ended',()=>{
+  if(RQ&&RQ.tracks.length>1){ RQ.i=(RQ.i+1)%RQ.tracks.length; playTrack(); }
+  else syncPlayUI();
+});
+function songsInfo(body){
+  return fetch(SYNC+'/songs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+}
+function playTrack(){
+  const tr=RQ.tracks[RQ.i];
+  const t=ALL.find(x=>x.id===tr.tid)||{id:tr.tid,name:tr.title};
+  radioAudio.src=tr.url;
+  RADNOW={tid:tr.tid,title:tr.title,t,awarded:RQ.i>0};
+  radioAudio.play().catch(()=>{});
+  if(RAD&&RAD.view==='np') renderNowPlaying();
+  else syncPlayUI();
+}
+function renderNowPlaying(){
+  const tr=RQ.tracks[RQ.i];
+  const gname=(GENRES.find(g=>g[0]===RQ.genre)||['',RQ.genre])[1];
+  $('#radioSheet').innerHTML=`
+    <div class="sheet-head"><h3 class="sheet-title display">${IC.radio} ${esc(tr.title)}</h3>
+      <button class="btn btn-secondary" id="radClose" style="flex:none;padding:9px 16px">Close</button></div>
+    <p class="modal-hint">${esc(gname)} radio · track ${RQ.i+1} of ${RQ.tracks.length} · ${esc((ALL.find(x=>x.id===tr.tid)||{name:''}).name)}</p>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn btn-primary" id="radPlay"></button>
+      ${RQ.tracks.length>1?'<button class="btn btn-radio" id="radNext">⏭ Next</button>':''}
+    </div>
+    ${tr.lyrics?`<div class="radio-lyrics">${esc(tr.lyrics)}</div>`:''}
+    <div class="actions" style="margin-top:14px"><button class="btn btn-secondary" id="radBack">All styles</button></div>`;
+  RAD.view='np';
+  $('#radClose').addEventListener('click',closeRadio);
+  $('#radBack').addEventListener('click',()=>{ RAD.view=null; renderRadioHome(); });
+  $('#radPlay').addEventListener('click',()=>{ radioAudio.paused?radioAudio.play():radioAudio.pause(); });
+  const nx=$('#radNext'); if(nx) nx.addEventListener('click',()=>{ RQ.i=(RQ.i+1)%RQ.tracks.length; playTrack(); });
+  syncPlayUI();
+}
+async function radioGlobal(genre){
+  RAD.genre=genre;
+  radioStatus('Loading the '+((GENRES.find(g=>g[0]===genre)||['',genre])[1])+' playlist…');
+  try{
+    const d=await songsInfo({genre});
+    if(!RAD) return;
+    const tracks=d.tracks||[];
+    if(!tracks.length){ radioStatus('No saved songs in this style yet — create some from topics first.'); return; }
+    RQ={tracks,i:0,genre};
+    playTrack(); renderNowPlaying();
+  }catch(e){ radioStatus('Could not load the playlist — try again.'); }
+}
 function teachFor(t){
   const deck=FC[t.id]||[];
   return deck.filter(c=>!c[0]).map(c=>c[2]).join('\n').slice(0,1100) || t.why || '';
@@ -1395,12 +1447,24 @@ function teachFor(t){
 function closeRadio(){ clearTimeout(radTimer); radTimer=null; RAD=null; $('#radioOverlay').classList.remove('show'); }
 function openRadio(t){
   if(!SYNC){ toast('Radio needs the family server — finish the Cloudflare setup first'); return; }
-  clearTimeout(radTimer); RAD={t,awarded:false};
-  const starred=Object.entries(P().stars||{}).filter(([k,s])=>!s.del&&s.tid===t.id);
+  clearTimeout(radTimer);
+  RAD={t,awarded:false,scope:(RAD&&RAD.scope)||'topic',view:null};
+  renderRadioHome();
+  $('#radioOverlay').classList.add('show');
+}
+function renderRadioHome(){
+  const t=RAD.t, scope=RAD.scope;
+  const starred=scope==='topic'?Object.entries(P().stars||{}).filter(([k,s])=>!s.del&&s.tid===t.id):[];
   $('#radioSheet').innerHTML=`
     <div class="sheet-head"><h3 class="sheet-title display">${IC.radio} Radio</h3>
       <button class="btn btn-secondary" id="radClose" style="flex:none;padding:9px 16px">Close</button></div>
-    <p class="modal-hint">A song written for <b>${esc(t.name)}</b> — pick a style. All are tuned for clear, easy-to-follow vocals.</p>
+    <div class="rscope">
+      <button data-scope="topic" class="${scope==='topic'?'on':''}">This topic</button>
+      <button data-scope="all" class="${scope==='all'?'on':''}">All topics</button>
+    </div>
+    <p class="modal-hint">${scope==='topic'
+      ?`A song written for <b>${esc(t.name)}</b> — pick a style. Brighter styles already have a song saved.`
+      :'Plays every saved song in a style, across all topics — no new generation.'}</p>
     ${starred.length?`<div class="startmenu" style="margin-top:14px">
       ${starred.map(([k,s])=>`<button class="btn btn-primary" data-star="${esc(k)}">★ ${esc(s.title)}<span class="genre-sub">${esc((GENRES.find(g=>g[0]===s.genre)||['',s.genre])[1])}</span></button>`).join('')}
     </div>`:''}
@@ -1408,12 +1472,29 @@ function openRadio(t){
       ${GENRES.map(g=>`<button class="btn btn-radio" data-genre="${g[0]}" style="flex-direction:column;align-items:center">${esc(g[1])}<span class="genre-sub">${esc(g[2])}</span></button>`).join('')}
     </div>`;
   $('#radClose').addEventListener('click',closeRadio);
-  document.querySelectorAll('#radioSheet [data-genre]').forEach(b=>b.addEventListener('click',()=>radioPick(b.dataset.genre)));
+  document.querySelectorAll('#radioSheet [data-scope]').forEach(b=>b.addEventListener('click',()=>{
+    if(RAD.scope!==b.dataset.scope){ RAD.scope=b.dataset.scope; renderRadioHome(); }
+  }));
+  document.querySelectorAll('#radioSheet [data-genre]').forEach(b=>b.addEventListener('click',()=>{
+    RQ=null;
+    scope==='topic'?radioPick(b.dataset.genre):radioGlobal(b.dataset.genre);
+  }));
   document.querySelectorAll('#radioSheet [data-star]').forEach(b=>b.addEventListener('click',()=>{
     const s=(P().stars||{})[b.dataset.star]; if(!s) return;
-    RAD.genre=s.genre; radioPlayer(s);
+    RQ=null; RAD.genre=s.genre; radioPlayer(s);
   }));
-  $('#radioOverlay').classList.add('show');
+  songsInfo(scope==='topic'?{tid:t.id}:{}).then(d=>{
+    if(!RAD||RAD.scope!==scope) return;
+    document.querySelectorAll('#radioSheet [data-genre]').forEach(b=>{
+      const g=b.dataset.genre;
+      const n=scope==='topic'?((d.ready||[]).includes(g)?1:0):((d.counts||{})[g]||0);
+      if(n){
+        b.classList.add('has-song');
+        const sub=b.querySelector('.genre-sub');
+        if(sub) sub.textContent=scope==='topic'?'Ready — plays instantly':`${n} song${n>1?'s':''} saved`;
+      }
+    });
+  }).catch(()=>{});
 }
 function radioStatus(msg){
   const el=$('#radStatus'); if(el){ el.textContent=msg; return; }
@@ -1447,6 +1528,7 @@ async function radioPoll(){
   }catch(e){ radTimer=setTimeout(radioPoll,8000); }
 }
 function radioPlayer(d){
+  RQ=null;
   const t=RAD.t;
   const skey=t.id+'|'+RAD.genre;
   const isStarred=()=>{ const s=(P().stars||{})[skey]; return !!(s&&!s.del); };

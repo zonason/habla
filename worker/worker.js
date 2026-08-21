@@ -139,6 +139,28 @@ Rules: every quiz answer must be unambiguously correct for Mexican Spanish; dist
       });
     }
 
+    if (req.method === 'POST' && op === 'songs') {
+      // song inventory: {tid} -> genres ready for that topic; {genre} -> playable tracks across topics; {} -> counts per genre
+      const jcors = { ...cors, 'Content-Type': 'application/json' };
+      let body; try { body = await req.json(); } catch { body = {}; }
+      const tid = body.tid ? String(body.tid).slice(0, 24) : null;
+      const genre = (body.genre && GENRE_STYLES[body.genre]) ? body.genre : null;
+      const prefix = 'song:' + key + ':';
+      const list = await env.HABLA.list({ prefix: tid ? prefix + tid + ':' : prefix, limit: 1000 });
+      const entries = [];
+      for (const k of list.keys.slice(0, 60)) {
+        const parts = k.name.slice(prefix.length).split(':');
+        if (parts.length < 2) continue;
+        const v = await env.HABLA.get(k.name, { type: 'json' });
+        if (v && v.url) entries.push({ tid: parts[0], genre: parts[1], title: v.title, url: v.url, lyrics: v.lyrics });
+      }
+      if (tid) return new Response(JSON.stringify({ ready: entries.map(e => e.genre) }), { headers: jcors });
+      if (genre) return new Response(JSON.stringify({ tracks: entries.filter(e => e.genre === genre) }), { headers: jcors });
+      const counts = {};
+      entries.forEach(e => { counts[e.genre] = (counts[e.genre] || 0) + 1; });
+      return new Response(JSON.stringify({ counts }), { headers: jcors });
+    }
+
     if (req.method === 'POST' && op === 'song') {
       const jcors = { ...cors, 'Content-Type': 'application/json' };
       if (!env.EVOLINK_API_KEY) {
